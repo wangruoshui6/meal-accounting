@@ -96,7 +96,7 @@ const saveRecord = async () => {
 
   try {
     const recordData = {
-      recordDate: selectedDate.value.format('YYYY-MM-DD'),
+      date: selectedDate.value.format('YYYY-MM-DD'),
       breakfast: meals.value.find(m => m.key === 'breakfast')?.amount || 0,
       lunch: meals.value.find(m => m.key === 'lunch')?.amount || 0,
       dinner: meals.value.find(m => m.key === 'dinner')?.amount || 0,
