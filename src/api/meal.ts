@@ -25,16 +25,16 @@ export interface MealRecordResponse {
 
 // 保存餐饮记录
 export const saveMealRecord = (data: MealRecordRequest) => {
-  return request.post('/meal/save', data)
+  return request.post('/api/meal/save', data)
 }
 
 // 获取指定日期的餐饮记录
 export const getMealRecord = (date: string) => {
-  return request.get(`/meal/get/${date}`)
+  return request.get(`/api/meal/get/${date}`)
 }
 
 // 删除指定日期的餐饮记录
 export const deleteMealRecord = (date: string) => {
-  return request.delete(`/meal/delete/${date}`)
+  return request.delete(`/api/meal/delete/${date}`)
 }
 
