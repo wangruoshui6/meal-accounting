@@ -2,7 +2,7 @@ import axios from 'axios'
 import { showToast } from 'vant'
 
 const request = axios.create({
-  baseURL: 'http://localhost:8080/api',
+  baseURL: 'http://101.201.254.71:8080',
   timeout: 10000
 })
 
