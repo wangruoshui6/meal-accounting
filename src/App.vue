@@ -1,11 +1,11 @@
 <template>
   <div id="app">
-    <MealRecord />
+    <router-view />
   </div>
 </template>
 
 <script setup lang="ts">
-import MealRecord from './views/MealRecord.vue'
+// 路由组件会自动渲染
 </script>
 
 <style lang="scss">

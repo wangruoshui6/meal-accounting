@@ -10,44 +10,260 @@
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   padding: 20px;
-  text-align: center;
+  position: relative;
   
-  .title {
-    font-size: 24px;
-    font-weight: bold;
-    margin-bottom: 10px;
+  .header-left {
+    position: absolute;
+    top: 15px;
+    left: 20px;
   }
   
-  .date-section {
-    margin-top: 10px;
+  .header-center {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    text-align: center;
     
-    .date-input {
-      background: rgba(255, 255, 255, 0.2);
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      color: white;
-      font-size: 14px;
-      padding: 8px 12px;
-      border-radius: 20px;
-      text-align: center;
+    .title {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    
+    .date-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
       
-      &::-webkit-calendar-picker-indicator {
-        filter: invert(1);
-        cursor: pointer;
+      .date-input {
+        background: rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        font-size: 14px;
+        padding: 8px 12px;
+        border-radius: 20px;
+        text-align: center;
+        
+        &::-webkit-calendar-picker-indicator {
+          filter: invert(1);
+          cursor: pointer;
+        }
+        
+        &:focus {
+          outline: none;
+          background: rgba(255, 255, 255, 0.3);
+        }
       }
       
-      &:focus {
-        outline: none;
-        background: rgba(255, 255, 255, 0.3);
+      .date-display {
+        font-size: 16px;
+        opacity: 0.9;
+        color: white;
+      }
+      
+      .time-display {
+        font-size: 14px;
+        opacity: 0.8;
+        color: white;
+        margin-top: 2px;
+        font-family: 'Courier New', monospace;
+      }
+    }
+  }
+  
+  .header-right {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  
+  .add-button, .delete-button, .settings-button {
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.1);
+    }
+    
+    .van-icon {
+      font-size: 20px;
+      color: white;
+    }
+  }
+  
+  .delete-button {
+    .van-icon {
+      color: #ff6b6b;
+    }
+  }
+  
+  .settings-button {
+    .van-icon {
+      color: #ffd700; // 金色设置图标
+    }
+  }
+}
+
+// 设置弹窗样式
+.settings-popup {
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  
+  .settings-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+    
+    .settings-title {
+      font-size: 18px;
+      font-weight: 600;
+      flex: 1;
+      text-align: center;
+    }
+    
+    .close-btn {
+      position: absolute;
+      right: 20px;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+    }
+  }
+  
+  .settings-content {
+    flex: 1;
+    padding: 15px;
+    overflow-y: auto;
+    max-height: 60vh;
+    
+    .settings-desc {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    
+    .settings-list {
+      margin-bottom: 15px;
+      
+      .settings-item {
+        display: flex;
+        align-items: center;
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+        border: 1px solid #e9ecef;
+        
+        .item-input {
+          flex: 1;
+          margin-right: 10px;
+          
+          .van-field__control {
+            font-size: 16px;
+            color: #333;
+          }
+        }
+        
+        .item-actions {
+          display: flex;
+          align-items: center;
+          
+          .delete-btn {
+            color: #ff4757;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+            
+            &:hover {
+              background-color: #ff475720;
+            }
+          }
+        }
       }
     }
     
-    .date-display {
+    .add-item-section {
+      display: flex;
+      align-items: center;
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 10px 12px;
+      border: 1px solid #e9ecef;
+      
+      .new-item-input {
+        flex: 1;
+        margin-right: 10px;
+        
+        .van-field__control {
+          font-size: 16px;
+          color: #333;
+        }
+      }
+      
+      .add-btn {
+        height: 36px;
+        border-radius: 18px;
+        background: #667eea;
+        border: none;
+        color: white;
+        font-size: 14px;
+        padding: 0 20px;
+      }
+    }
+  }
+  
+  .settings-footer {
+    padding: 15px;
+    background: white;
+    border-top: 1px solid #f0f0f0;
+    display: flex;
+    gap: 10px;
+    
+    .van-button {
+      flex: 1;
+      height: 48px;
+      border-radius: 24px;
       font-size: 16px;
-      opacity: 0.9;
+    }
+    
+    .cancel-btn {
+      background: #f5f5f5;
+      color: #666;
+      border: 1px solid #ddd;
+    }
+    
+    .save-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
       color: white;
     }
   }
@@ -55,17 +271,43 @@
 
 .meal-list {
   padding: 20px;
+  padding-bottom: 120px; // 为底部按钮留出空间
   
   .meal-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
     padding: 15px 0;
     border-bottom: 1px solid #f0f0f0;
     
     &:last-child {
       border-bottom: none;
     }
+    
+    .meal-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    &.custom-item {
+      .meal-row {
+        .delete-btn {
+          margin-left: 10px;
+          color: #ff4757;
+          cursor: pointer;
+          padding: 5px;
+          border-radius: 50%;
+          transition: background-color 0.2s;
+          
+          &:hover {
+            background-color: #ff475720;
+          }
+          
+          .van-icon {
+            font-size: 16px;
+          }
+        }
+      }
+    }
+    
     
     .meal-name {
       font-size: 16px;
@@ -76,6 +318,7 @@
       width: 100px;
       text-align: right;
       
+      
       input {
         width: 100%;
         border: none;
@@ -83,6 +326,7 @@
         font-size: 16px;
         text-align: right;
         color: #666;
+        background: transparent;
         
         &::placeholder {
           color: #ccc;
@@ -100,6 +344,22 @@
           -moz-appearance: textfield;
         }
       }
+      
+    }
+    
+  }
+  
+  .scroll-hint {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    color: #999;
+    font-size: 14px;
+    
+    .van-icon {
+      margin-bottom: 5px;
+      font-size: 16px;
     }
   }
 }
@@ -108,6 +368,10 @@
   background: #f8f9fa;
   padding: 20px;
   margin-top: 20px;
+  margin-bottom: 100px; // 为底部按钮留出空间
+  position: sticky;
+  bottom: 100px; // 粘性定位，始终在底部按钮上方
+  z-index: 10;
   
   .total-item {
     display: flex;
@@ -129,18 +393,105 @@
   }
 }
 
-.save-button {
+.action-buttons {
   position: fixed;
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
   width: calc(100% - 40px);
   max-width: 360px;
+  display: flex;
+  gap: 10px;
   
   .van-button {
-    width: 100%;
+    flex: 1;
     height: 50px;
     font-size: 18px;
     border-radius: 25px;
   }
+  
+  .clear-button {
+    background: #f5f5f5;
+    color: #666;
+    border: 1px solid #ddd;
+  }
+  
+  .save-button {
+    background: #667eea;
+    border: none;
+  }
 }
+
+// 添加项目弹窗样式
+.add-modal-content {
+  padding: 20px;
+  
+  .modal-title {
+    font-size: 16px;
+    color: #333;
+    margin-bottom: 15px;
+    text-align: center;
+  }
+}
+
+.delete-modal-content {
+  padding: 20px;
+  
+  .modal-title {
+    font-size: 16px;
+    color: #333;
+    margin-bottom: 15px;
+    text-align: center;
+  }
+  
+  .delete-list {
+    max-height: 300px;
+    overflow-y: auto;
+    
+    .delete-item {
+      display: flex;
+      align-items: center;
+      padding: 12px 15px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      
+      &:hover {
+        background-color: #f8f9fa;
+        border-color: #667eea;
+      }
+      
+      &.selected {
+        background-color: #667eea10;
+        border-color: #667eea;
+      }
+      
+      .item-name {
+        flex: 1;
+        font-size: 16px;
+        color: #333;
+      }
+      
+      .item-amount {
+        margin-right: 10px;
+        font-size: 14px;
+        color: #666;
+        font-weight: 500;
+      }
+      
+      .van-icon {
+        font-size: 18px;
+      }
+    }
+    
+    .no-items {
+      text-align: center;
+      padding: 40px 20px;
+      color: #999;
+      font-size: 14px;
+    }
+  }
+}
+
