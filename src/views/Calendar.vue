@@ -15,10 +15,9 @@
         <van-button type="primary" size="small" class="stats-btn">统计</van-button>
       </div>
       <div class="header-center">
-        <van-icon name="cloud" class="cloud-icon" />
         <van-icon name="arrow-left" @click="prevMonth" class="nav-icon" />
         <span class="month-year">{{ currentMonthYear }}</span>
-        <van-icon name="arrow-right" @click="nextMonth" class="nav-icon" />
+        <van-icon name="arrow-left" @click="nextMonth" class="nav-icon" style="transform: rotate(180deg);" />
       </div>
       <div class="header-right">
         <van-icon name="ellipsis" class="menu-icon" />
@@ -117,6 +116,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
+import { getRecordDates } from '../api/meal'
 
 const router = useRouter()
 
@@ -161,10 +161,11 @@ const calendarDates = computed(() => {
   while (current.isBefore(endOfWeek) || current.isSame(endOfWeek, 'day')) {
     const isCurrentMonth = current.isSame(currentMonth.value, 'month')
     const isToday = current.isSame(dayjs(), 'day')
-    const hasRecord = Math.random() > 0.7 // 模拟有记录的概率
+    const dateKey = current.format('YYYY-MM-DD')
+    const hasRecord = recordDates.value.has(dateKey) // 检查是否有记录
     
     dates.push({
-      key: current.format('YYYY-MM-DD'),
+      key: dateKey,
       day: current.date(),
       isCurrentMonth,
       isToday,
@@ -181,10 +182,12 @@ const calendarDates = computed(() => {
 // 切换月份
 const prevMonth = () => {
   currentMonth.value = currentMonth.value.subtract(1, 'month')
+  loadRecordData() // 重新加载记录数据
 }
 
 const nextMonth = () => {
   currentMonth.value = currentMonth.value.add(1, 'month')
+  loadRecordData() // 重新加载记录数据
 }
 
 // 选择日期
@@ -203,10 +206,33 @@ const editRecord = (item: any) => {
   console.log('编辑记录:', item.name)
 }
 
+// 有记录的日期列表
+const recordDates = ref<Set<string>>(new Set())
+
 // 加载记录数据
-const loadRecordData = () => {
-  // 模拟加载数据
-  console.log('加载日期数据:', selectedDate.value.format('YYYY-MM-DD'))
+const loadRecordData = async () => {
+  try {
+    // 获取当前月份有记录的日期
+    const year = currentMonth.value.year()
+    const month = currentMonth.value.month() + 1 // dayjs的月份从0开始
+    
+    console.log('获取记录日期:', year, month)
+    
+    // 调用后端API获取有记录的日期
+    const response = await getRecordDates(year, month)
+    
+    if (response.data.success) {
+      const dates = response.data.data || []
+      recordDates.value = new Set(dates)
+      console.log('加载记录日期成功:', recordDates.value)
+    } else {
+      console.error('获取记录日期失败:', response.data.message)
+      recordDates.value = new Set()
+    }
+  } catch (error) {
+    console.error('加载记录数据失败:', error)
+    recordDates.value = new Set()
+  }
 }
 
 // 切换标签页
@@ -265,20 +291,26 @@ onMounted(() => {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   padding: 20px;
-  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .header-left {
-  position: absolute;
-  top: 15px;
-  left: 20px;
+  flex: 0 0 auto;
 }
 
 .header-center {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 16px;
+  flex: 1;
+  flex-direction: row;
+}
+
+.header-right {
+  flex: 0 0 auto;
 }
 
 .month-year {
@@ -290,6 +322,21 @@ onMounted(() => {
 .nav-icon, .cloud-icon, .menu-icon {
   font-size: 20px;
   cursor: pointer;
+  color: white;
+  background: transparent;
+  padding: 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+}
+
+.nav-icon:hover, .cloud-icon:hover, .menu-icon:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .stats-btn {
@@ -298,11 +345,6 @@ onMounted(() => {
   color: white;
 }
 
-.header-right {
-  position: absolute;
-  top: 15px;
-  right: 20px;
-}
 
 /* 日历 */
 .calendar {
@@ -357,7 +399,13 @@ onMounted(() => {
 }
 
 .date-cell.has-record {
-  background: #e3f2fd;
+  background: #4caf50;
+  color: white;
+}
+
+.date-cell.has-record .date-number {
+  color: white;
+  font-weight: 600;
 }
 
 .date-cell.current-month {

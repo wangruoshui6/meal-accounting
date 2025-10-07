@@ -10,14 +10,67 @@
       <div class="header-center">
         <div class="title">餐饮记账</div>
         <div class="date-section">
-          <input 
-            type="date" 
-            v-model="dateInput"
-            @change="onDateChange"
-            class="date-input"
-          />
+          <div class="date-input" @click="openDatePicker">
+            {{ dateInput }}
+            <van-icon name="calendar-o" class="calendar-icon" />
+          </div>
           <div class="date-display">{{ currentDate }}</div>
           <div class="time-display">{{ currentTime }}</div>
+          
+          <!-- 使用van-popup显示日历 -->
+          <van-popup
+            v-model:show="showDatePicker"
+            position="center"
+            :style="{ width: '90%', maxWidth: '350px' }"
+            round
+          >
+            <div class="calendar-popup">
+              <div class="calendar-header">
+                <div class="header-left">
+                  <span class="header-title">统计</span>
+                </div>
+                <div class="header-center">
+                  <button @click="prevMonth" class="nav-arrow">◀</button>
+                  <span class="header-month">{{ currentMonthText }}</span>
+                  <button @click="nextMonth" class="nav-arrow nav-arrow-right">▶</button>
+                </div>
+                <div class="header-right">
+                  <button class="more-btn">⋯</button>
+                </div>
+              </div>
+              <div class="custom-calendar">
+                <div class="calendar-weekdays">
+                  <div class="weekday">一</div>
+                  <div class="weekday">二</div>
+                  <div class="weekday">三</div>
+                  <div class="weekday">四</div>
+                  <div class="weekday">五</div>
+                  <div class="weekday">六</div>
+                  <div class="weekday">日</div>
+                </div>
+                <div class="calendar-days">
+                  <div
+                    v-for="day in calendarDays"
+                    :key="day.key"
+                    :class="['calendar-day', { 
+                      'has-record': day.hasRecord, 
+                      'is-today': day.isToday, 
+                      'is-other-month': day.isOtherMonth
+                    }]"
+                    :data-date="day.date.format('YYYY-MM-DD')"
+                    @click="selectDate(day)"
+                    :style="selectedDateStr.value === day.date.format('YYYY-MM-DD') ? 'background: #FF9800 !important; color: white !important; border: 3px solid #E65100 !important; transform: scale(1.1) !important; z-index: 999 !important;' : ''"
+                  >
+                    {{ day.day }}
+                  </div>
+                </div>
+                <div class="calendar-footer">
+                  <button @click="closeDatePicker" class="cancel-btn">取消</button>
+                  <button @click="confirmDate" class="confirm-btn">确定</button>
+                </div>
+              </div>
+            </div>
+          </van-popup>
         </div>
       </div>
       <div class="header-right">
@@ -59,7 +112,7 @@
         <van-button type="default" @click="clearAllDataLocal" class="clear-button">
           清除数据
         </van-button>
-      <van-button type="primary" @click="saveRecord" class="save-button">
+      <van-button type="default" @click="saveRecord" class="save-button">
         保存记录
       </van-button>
     </div>
@@ -109,6 +162,11 @@
     >
       <div class="delete-modal-content">
         <div class="modal-title">选择要删除的项目:</div>
+        <div class="select-all-section">
+          <button @click="toggleSelectAll" class="select-all-btn">
+            {{ isAllSelected ? '取消全选' : '全选' }}
+          </button>
+        </div>
         <div class="delete-list">
           <div 
             v-for="meal in customMeals" 
@@ -199,16 +257,17 @@
       </div>
     </van-popup>
 
+
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import dayjs from 'dayjs'
 import MealItem from '../components/MealItem.vue'
-import { saveMealRecord, getMealRecord, deleteCustomItems, clearAllData } from '../api/meal'
+import { saveMealRecord, getMealRecord, deleteCustomItems, clearAllData, getRecordDates } from '../api/meal'
 import { getDefaultMealItems, saveDefaultMealItems } from '../api/settings'
 
 const router = useRouter()
@@ -242,6 +301,11 @@ const newMealName = ref('')
 const showDeleteModal = ref(false)
 const selectedDeleteItems = ref<string[]>([])
 
+// 全选状态
+const isAllSelected = computed(() => {
+  return customMeals.value.length > 0 && selectedDeleteItems.value.length === customMeals.value.length
+})
+
 
 // 当前标签页
 const currentTab = ref('home')
@@ -273,7 +337,7 @@ const updateMealDescription = (key: string, description: string) => {
 }
 
 // 添加新的餐饮项目
-const addMealItem = () => {
+const addMealItem = async () => {
   if (!newMealName.value.trim()) {
     showToast('请输入项目名称')
     return
@@ -298,6 +362,15 @@ const addMealItem = () => {
     type: 'number' as const,
     description: ''
   })
+  
+  // 立即保存到后端
+  try {
+    await saveRecord()
+    console.log('新项目已保存到后端')
+  } catch (error) {
+    console.error('保存新项目失败:', error)
+    showToast('添加成功，但保存失败')
+  }
   
   // 清空输入并关闭弹窗
   newMealName.value = ''
@@ -355,6 +428,17 @@ const toggleDeleteSelection = (key: string) => {
     selectedDeleteItems.value.splice(index, 1)
   } else {
     selectedDeleteItems.value.push(key)
+  }
+}
+
+// 全选/取消全选
+const toggleSelectAll = () => {
+  if (isAllSelected.value) {
+    // 取消全选
+    selectedDeleteItems.value = []
+  } else {
+    // 全选
+    selectedDeleteItems.value = customMeals.value.map(meal => meal.key)
   }
 }
 
@@ -429,6 +513,13 @@ const newItemName = ref('')
 // 设置弹窗拖拽相关变量
 const settingsDraggedIndex = ref<number | null>(null)
 const settingsDraggedOverIndex = ref<number | null>(null)
+
+// 日期选择器相关变量
+const showDatePicker = ref(false)
+const recordDates = ref<Set<string>>(new Set())
+const currentMonth = ref(dayjs())
+const tempSelectedDate = ref(dayjs().clone())
+const selectedDateStr = ref('')
 
 // 跳转到设置页面
 const goToSettings = () => {
@@ -577,6 +668,161 @@ const loadDefaultMealItems = async () => {
   }
 }
 
+// 加载有记录的日期
+const loadRecordDates = async () => {
+  try {
+    const year = currentMonth.value.year()
+    const month = currentMonth.value.month() + 1
+    
+    console.log('请求参数:', { year, month })
+    
+    const response = await getRecordDates(year, month)
+    console.log('API响应:', response)
+    
+    if (response.data.success) {
+      const dates = response.data.data || []
+      recordDates.value = new Set(dates)
+      console.log('记录日期:', dates)
+    }
+  } catch (error) {
+    console.error('加载记录日期失败:', error)
+  }
+}
+
+// 当前月份文本
+const currentMonthText = computed(() => {
+  return currentMonth.value.format('YYYY年MM月')
+})
+
+// 日历天数计算
+const calendarDays = computed(() => {
+  const days = []
+  const startOfMonth = currentMonth.value.startOf('month')
+  const endOfMonth = currentMonth.value.endOf('month')
+  const startOfWeek = startOfMonth.startOf('week').add(1, 'day') // 从周一开始
+  const endOfWeek = endOfMonth.endOf('week').add(1, 'day') // 到周日结束
+  
+  let current = startOfWeek
+  while (current.isBefore(endOfWeek) || current.isSame(endOfWeek, 'day')) {
+    const dateStr = current.format('YYYY-MM-DD')
+    const isCurrentMonth = current.isSame(currentMonth.value, 'month')
+    const isToday = current.isSame(dayjs(), 'day')
+    const hasRecord = recordDates.value.has(dateStr)
+    
+    days.push({
+      key: dateStr,
+      day: current.date(),
+      date: current,
+      isOtherMonth: !isCurrentMonth,
+      isToday,
+      hasRecord
+    })
+    
+    current = current.add(1, 'day')
+  }
+  
+  return days
+})
+
+// 打开日期选择器
+const openDatePicker = () => {
+  console.log('打开日期选择器')
+  console.log('当前记录日期:', Array.from(recordDates.value))
+  currentMonth.value = selectedDate.value.clone()
+  tempSelectedDate.value = selectedDate.value.clone()
+  selectedDateStr.value = selectedDate.value.format('YYYY-MM-DD')
+  console.log('初始化selectedDateStr:', selectedDateStr.value)
+  showDatePicker.value = true
+}
+
+// 上一个月
+const prevMonth = () => {
+  currentMonth.value = currentMonth.value.subtract(1, 'month')
+  loadRecordDates()
+}
+
+// 下一个月
+const nextMonth = () => {
+  currentMonth.value = currentMonth.value.add(1, 'month')
+  loadRecordDates()
+}
+
+// 选择日期
+const selectDate = (day: any) => {
+  if (!day.isOtherMonth) {
+    const newDate = day.date.clone()
+    tempSelectedDate.value = newDate
+    selectedDateStr.value = newDate.format('YYYY-MM-DD')
+    console.log('设置选中日期:', selectedDateStr.value)
+    
+    // 直接修改DOM样式
+    setTimeout(() => {
+      // 清除所有日期的选中样式
+      document.querySelectorAll('.calendar-day').forEach(el => {
+        el.style.background = ''
+        el.style.color = ''
+        el.style.border = ''
+        el.style.transform = ''
+      })
+      
+      // 设置当前选中日期的样式
+      const targetElement = document.querySelector(`[data-date="${newDate.format('YYYY-MM-DD')}"]`)
+      if (targetElement) {
+        targetElement.style.background = '#FF9800'
+        targetElement.style.color = 'white'
+        targetElement.style.border = '3px solid #E65100'
+        targetElement.style.transform = 'scale(1.1)'
+        console.log('直接设置DOM样式成功')
+      } else {
+        console.log('找不到目标元素')
+      }
+    }, 50)
+  }
+}
+
+// 确认日期
+const confirmDate = () => {
+  selectedDate.value = tempSelectedDate.value
+  dateInput.value = selectedDate.value.format('YYYY-MM-DD')
+  currentDate.value = selectedDate.value.format('YYYY年MM月DD日')
+  showDatePicker.value = false
+  
+  // 重新加载数据
+  loadData()
+}
+
+// 点击外部关闭日历
+const closeDatePicker = () => {
+  showDatePicker.value = false
+}
+
+// 日期确认
+const onDateConfirm = (date: Date) => {
+  selectedDate.value = dayjs(date)
+  dateInput.value = selectedDate.value.format('YYYY-MM-DD')
+  currentDate.value = selectedDate.value.format('YYYY年MM月DD日')
+  showDatePicker.value = false
+  
+  // 重新加载数据
+  loadData()
+}
+
+// 原生日期选择器变化
+const onNativeDateChange = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const newDate = target.value
+  
+  if (newDate) {
+    selectedDate.value = dayjs(newDate)
+    dateInput.value = newDate
+    currentDate.value = selectedDate.value.format('YYYY年MM月DD日')
+    showDatePicker.value = false
+    
+    // 重新加载数据
+    loadData()
+  }
+}
+
 // 初始化餐饮数据
 const initializeMeals = () => {
   const keyMapping = ['breakfast', 'lunch', 'dinner', 'snack', 'drink']
@@ -604,7 +850,12 @@ const onDateChange = async () => {
 
 // 保存记录
 const saveRecord = async () => {
-  if (totalAmount.value === 0) {
+  // 检查是否有动态项目需要保存
+  const hasCustomItems = meals.value.some(meal => 
+    meal.key.startsWith('custom_') || meal.key.startsWith('default_')
+  )
+  
+  if (totalAmount.value === 0 && !hasCustomItems) {
     showToast('请输入至少一项金额')
     return
   }
@@ -621,9 +872,7 @@ const saveRecord = async () => {
     // 构建动态项目对象
     const customItems: Record<string, number> = {}
     customMeals.forEach(meal => {
-      if (meal.amount > 0) {
-        customItems[meal.name] = meal.amount
-      }
+      customItems[meal.name] = meal.amount
     })
     
     const recordData = {
@@ -640,6 +889,9 @@ const saveRecord = async () => {
     const response = await saveMealRecord(recordData)
     console.log('保存响应:', response)
     showToast('保存成功！')
+    
+    // 保存成功后更新记录日期
+    await loadRecordDates()
     
     // 保存成功后不清空数据，让用户看到保存的内容
   } catch (error) {
@@ -776,6 +1028,7 @@ onMounted(async () => {
   await loadDefaultMealItems()
   initializeMeals()
   await loadData()
+  await loadRecordDates() // 加载有记录的日期
   
   // 启动时间定时器
   setInterval(() => {
@@ -887,5 +1140,379 @@ onMounted(async () => {
 
 .settings-item .drag-handle:active {
   cursor: grabbing;
+}
+
+/* 日期选择器样式 */
+.date-section {
+  position: relative;
+}
+
+.date-input {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid #e0e0e0;
+  font-size: 14px;
+  color: #1976d2;
+  font-weight: 500;
+  position: relative;
+  z-index: 10;
+}
+
+.calendar-icon {
+  margin-left: 8px;
+  color: #1976d2;
+}
+
+/* 日历弹窗样式 */
+.calendar-popup {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #20B2AA 0%, #48CAE4 100%);
+  color: white;
+  border-radius: 12px 12px 0 0;
+}
+
+.header-left {
+  flex: 1;
+}
+
+.header-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.header-center {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 2;
+  justify-content: center;
+  min-width: 200px;
+}
+
+.header-month {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.nav-arrow {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: all 0.2s;
+  min-width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-arrow:hover {
+  background: rgba(255, 255, 255, 0.4);
+  transform: scale(1.05);
+}
+
+.nav-arrow-right {
+  background: rgba(255, 255, 255, 0.3) !important;
+  border: 2px solid rgba(255, 255, 255, 0.5) !important;
+}
+
+.header-right {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  min-width: 60px;
+}
+
+.more-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.more-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.close-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  font-size: 18px;
+  color: white;
+  cursor: pointer;
+  padding: 6px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* 自定义日历样式 */
+.custom-calendar {
+  padding: 16px;
+  background: white;
+}
+
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 8px 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+}
+
+.weekday {
+  text-align: center;
+  font-size: 14px;
+  color: white;
+  padding: 8px 0;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  padding: 8px;
+  background: #f8f9fa;
+  border-radius: 12px;
+}
+
+.calendar-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  position: relative;
+  background: white;
+  color: #333;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 2px solid transparent;
+}
+
+.calendar-day:hover {
+  background: #e3f2fd;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.calendar-day.is-other-month {
+  color: #999;
+  background: #f8f9fa;
+  opacity: 0.7;
+}
+
+.calendar-day.is-today {
+  background: linear-gradient(135deg, #2196F3 0%, #21CBF3 100%) !important;
+  color: white !important;
+  border: 2px solid #1976D2 !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3) !important;
+}
+
+.calendar-day.is-selected {
+  background: #FF9800 !important;
+  color: white !important;
+  border: 3px solid #E65100 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 0 2px #FF9800 !important;
+  transform: scale(1.15) !important;
+  z-index: 10 !important;
+}
+
+.calendar-day.has-record {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%) !important;
+  color: white !important;
+  border: 2px solid #388E3C !important;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.calendar-day.has-record.is-today {
+  background: linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%) !important;
+  border: 2px solid #1B5E20 !important;
+  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.4);
+}
+
+.calendar-day.has-record.is-selected {
+  background: linear-gradient(135deg, #FF5722 0%, #D84315 100%) !important;
+  border: 2px solid #BF360C !important;
+  box-shadow: 0 4px 12px rgba(255, 87, 34, 0.4) !important;
+  transform: scale(1.1) !important;
+}
+
+.calendar-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.cancel-btn, .confirm-btn {
+  flex: 1;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cancel-btn {
+  background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
+  color: #666;
+  border: 2px solid #ddd;
+}
+
+.cancel-btn:hover {
+  background: linear-gradient(135deg, #e0e0e0 0%, #d0d0d0 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.confirm-btn {
+  background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
+  color: #666;
+  border: 2px solid #ddd;
+}
+
+.confirm-btn:hover {
+  background: linear-gradient(135deg, #e0e0e0 0%, #d0d0d0 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+:deep(.van-calendar__day--selected::after) {
+  background-color: white !important;
+}
+
+/* 删除弹窗样式 */
+.delete-modal-content {
+  padding: 16px;
+}
+
+.modal-title {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 12px;
+  color: #333;
+}
+
+.select-all-section {
+  margin-bottom: 16px;
+  text-align: right;
+}
+
+.select-all-btn {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.select-all-btn:hover {
+  background: #5a6fd8;
+}
+
+.delete-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.delete-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.delete-item:hover {
+  background-color: #f8f9fa;
+}
+
+.delete-item.selected {
+  background-color: #e3f2fd;
+}
+
+.item-name {
+  flex: 1;
+  font-size: 14px;
+  color: #333;
+}
+
+.item-amount {
+  font-size: 14px;
+  color: #666;
+  margin-right: 8px;
+}
+
+.no-items {
+  text-align: center;
+  color: #999;
+  padding: 20px 0;
+  font-size: 14px;
+}
+
+:deep(.van-calendar__footer) {
+  padding: 12px 16px;
+  border-top: 1px solid #e0e0e0;
+}
+
+:deep(.van-button--primary) {
+  width: 100%;
+  height: 36px;
+  font-size: 14px;
+  border-radius: 6px;
 }
 </style>

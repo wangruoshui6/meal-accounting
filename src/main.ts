@@ -1,7 +1,7 @@
 import { createApp } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
-import { Button, Toast, Dialog, Field, Icon, Popup, Tabs, Tab, Checkbox, Form } from 'vant'
+import { Button, Toast, Dialog, Field, Icon, Popup, Tabs, Tab, Checkbox, Form, Calendar as VanCalendar } from 'vant'
 import 'vant/lib/index.css'
 import './styles/index.scss'
 
@@ -49,4 +49,5 @@ app.use(Tabs)
 app.use(Tab)
 app.use(Checkbox)
 app.use(Form)
+app.use(VanCalendar)
 app.mount('#app')

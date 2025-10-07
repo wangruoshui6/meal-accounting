@@ -54,3 +54,8 @@ export const clearAllData = (date: string) => {
   return request.post(`/api/meal/clear-all/${date}`)
 }
 
+// 获取指定月份有记录的日期列表
+export const getRecordDates = (year: number, month: number) => {
+  return request.get(`/api/meal/record-dates/${year}/${month}`)
+}
+
