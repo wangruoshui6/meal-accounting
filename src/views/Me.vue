@@ -9,6 +9,9 @@
       </div>
     </div>
 
+    <!-- 下拉刷新 -->
+    <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
+
     <!-- 用户信息头部 -->
     <div class="user-header">
       <div class="user-avatar">
@@ -47,16 +50,42 @@
     <!-- 数据统计卡片 -->
     <div class="stats-cards">
       <div class="stats-card">
-        <div class="stats-number">{{ totalDays }}</div>
+        <div class="stats-icon">📅</div>
+        <div class="stats-number">{{ loading ? '...' : totalDays }}</div>
         <div class="stats-label">记账天数</div>
       </div>
       <div class="stats-card">
-        <div class="stats-number">¥{{ totalAmount }}</div>
+        <div class="stats-icon">💰</div>
+        <div class="stats-number">{{ loading ? '...' : `¥${totalAmount}` }}</div>
         <div class="stats-label">总消费</div>
       </div>
       <div class="stats-card">
-        <div class="stats-number">{{ avgDaily }}</div>
+        <div class="stats-icon">📊</div>
+        <div class="stats-number">{{ loading ? '...' : avgDaily }}</div>
         <div class="stats-label">日均消费</div>
+      </div>
+    </div>
+
+    <!-- 最近活动 -->
+    <div class="recent-activity">
+      <div class="section-title">最近活动</div>
+      <div class="activity-list">
+        <div class="activity-item">
+          <div class="activity-icon">🍽️</div>
+          <div class="activity-content">
+            <div class="activity-title">今日用餐记录</div>
+            <div class="activity-desc">已记录今日的餐饮消费</div>
+          </div>
+          <div class="activity-time">{{ dayjs().format('HH:mm') }}</div>
+        </div>
+        <div class="activity-item">
+          <div class="activity-icon">📈</div>
+          <div class="activity-content">
+            <div class="activity-title">查看统计报告</div>
+            <div class="activity-desc">了解消费趋势和习惯</div>
+          </div>
+          <div class="activity-time">昨天</div>
+        </div>
       </div>
     </div>
 
@@ -75,6 +104,7 @@
         <span>我</span>
       </div>
     </div>
+    </van-pull-refresh>
   </div>
 </template>
 
@@ -82,6 +112,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
+import { getUserStatistics } from '../api/meal'
+import { showToast } from 'vant'
 
 const router = useRouter()
 
@@ -95,9 +127,13 @@ const currentTab = ref('me')
 const username = ref('用户')
 
 // 统计数据
-const totalDays = ref(15)
-const totalAmount = ref('1,234.56')
-const avgDaily = ref('82.30')
+const totalDays = ref(0)
+const totalAmount = ref('0.00')
+const avgDaily = ref('0.00')
+
+// 加载状态
+const loading = ref(false)
+const refreshing = ref(false)
 
 // 切换标签页
 const switchTab = (tab: string) => {
@@ -111,19 +147,19 @@ const switchTab = (tab: string) => {
 
 // 菜单点击事件
 const goToSettings = () => {
-  console.log('前往设置')
+  router.push('/settings')
 }
 
 const goToStatistics = () => {
-  console.log('前往统计报告')
+  router.push('/statistics')
 }
 
 const goToExport = () => {
-  console.log('前往数据导出')
+  showToast('数据导出功能开发中...')
 }
 
 const goToHelp = () => {
-  console.log('前往帮助中心')
+  showToast('帮助中心功能开发中...')
 }
 
 // 更新时间
@@ -131,9 +167,103 @@ const updateTime = () => {
   currentTime.value = dayjs().format('HH:mm')
 }
 
+// 加载用户统计数据
+const loadUserStatistics = async () => {
+  try {
+    loading.value = true
+    const response = await getUserStatistics()
+    
+    if (response.data && response.data.success) {
+      const data = response.data.data
+      totalDays.value = data.totalDays || 0
+      totalAmount.value = formatAmount(data.totalAmount || 0)
+      avgDaily.value = formatAmount(data.avgDaily || 0)
+    }
+  } catch (error) {
+    console.error('加载统计数据失败:', error)
+    // 如果API失败，使用本地存储的数据作为备用
+    loadLocalStatistics()
+  } finally {
+    loading.value = false
+  }
+}
+
+// 格式化金额
+const formatAmount = (amount: number): string => {
+  return amount.toFixed(2)
+}
+
+// 从本地存储加载统计数据（备用方案）
+const loadLocalStatistics = () => {
+  try {
+    // 从localStorage获取所有记录日期
+    const allKeys = Object.keys(localStorage)
+    const recordKeys = allKeys.filter(key => key.startsWith('meal-record-'))
+    
+    let totalAmountValue = 0
+    let totalDaysValue = recordKeys.length
+    
+    recordKeys.forEach(key => {
+      try {
+        const data = JSON.parse(localStorage.getItem(key) || '{}')
+        if (data.meals) {
+          Object.values(data.meals).forEach(amount => {
+            totalAmountValue += Number(amount) || 0
+          })
+        }
+        if (data.customItems) {
+          Object.values(data.customItems).forEach(amount => {
+            totalAmountValue += Number(amount) || 0
+          })
+        }
+      } catch (e) {
+        console.error('解析本地数据失败:', e)
+      }
+    })
+    
+    totalDays.value = totalDaysValue
+    totalAmount.value = formatAmount(totalAmountValue)
+    avgDaily.value = totalDaysValue > 0 ? formatAmount(totalAmountValue / totalDaysValue) : '0.00'
+  } catch (error) {
+    console.error('加载本地统计数据失败:', error)
+  }
+}
+
+// 获取用户名
+const loadUserInfo = () => {
+  try {
+    const userStr = localStorage.getItem('user')
+    if (userStr) {
+      const user = JSON.parse(userStr)
+      username.value = user.username || user.nickname || '用户'
+    }
+  } catch (error) {
+    console.error('获取用户信息失败:', error)
+  }
+}
+
+// 下拉刷新
+const onRefresh = async () => {
+  refreshing.value = true
+  try {
+    await loadUserStatistics()
+    showToast('刷新成功')
+  } catch (error) {
+    showToast('刷新失败')
+  } finally {
+    refreshing.value = false
+  }
+}
+
 onMounted(() => {
   // 设置当前标签页状态
   currentTab.value = 'me'
+  
+  // 加载用户信息
+  loadUserInfo()
+  
+  // 加载统计数据
+  loadUserStatistics()
   
   // 每秒更新时间
   setInterval(updateTime, 1000)
@@ -259,6 +389,16 @@ onMounted(() => {
   border-radius: 12px;
   text-align: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease;
+}
+
+.stats-card:hover {
+  transform: translateY(-2px);
+}
+
+.stats-icon {
+  font-size: 20px;
+  margin-bottom: 8px;
 }
 
 .stats-number {
@@ -271,6 +411,67 @@ onMounted(() => {
 .stats-label {
   font-size: 12px;
   color: #666;
+}
+
+/* 最近活动 */
+.recent-activity {
+  background: white;
+  margin: 8px;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.activity-item:last-child {
+  border-bottom: none;
+}
+
+.activity-icon {
+  font-size: 20px;
+  margin-right: 12px;
+  width: 32px;
+  text-align: center;
+}
+
+.activity-content {
+  flex: 1;
+}
+
+.activity-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 2px;
+}
+
+.activity-desc {
+  font-size: 12px;
+  color: #666;
+}
+
+.activity-time {
+  font-size: 12px;
+  color: #999;
 }
 
 /* 底部导航 */

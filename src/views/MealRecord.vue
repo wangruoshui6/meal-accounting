@@ -876,7 +876,7 @@ const saveRecord = async () => {
     })
     
     const recordData = {
-      date: selectedDate.value.format('YYYY-MM-DD'),
+      recordDate: selectedDate.value.format('YYYY-MM-DD'),
       breakfast: fixedMeals.find(m => m.key === 'breakfast')?.amount || 0,
       lunch: fixedMeals.find(m => m.key === 'lunch')?.amount || 0,
       dinner: fixedMeals.find(m => m.key === 'dinner')?.amount || 0,
@@ -905,6 +905,9 @@ const loadData = async () => {
   try {
     const dateKey = selectedDate.value.format('YYYY-MM-DD')
     const record = await getMealRecord(dateKey)
+    
+    // 先初始化默认项目
+    initializeMeals()
     
     if (record) {
       console.log('从后端加载的数据:', record)
@@ -1026,8 +1029,7 @@ onMounted(async () => {
   currentTab.value = 'home'
   
   await loadDefaultMealItems()
-  initializeMeals()
-  await loadData()
+  await loadData() // 先加载数据，包括动态项目
   await loadRecordDates() // 加载有记录的日期
   
   // 启动时间定时器

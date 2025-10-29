@@ -12,7 +12,7 @@
     <!-- 头部导航 -->
     <div class="header">
       <div class="header-left">
-        <van-button type="primary" size="small" class="stats-btn">统计</van-button>
+        <van-button type="primary" size="small" class="stats-btn" @click="goToStatistics">统计</van-button>
       </div>
       <div class="header-center">
         <van-icon name="arrow-left" @click="prevMonth" class="nav-icon" />
@@ -69,25 +69,21 @@
         <div 
           v-for="item in recordItems" 
           :key="item.key"
-          :class="['record-item', { 'has-value': item.value > 0 }]"
+          :class="['record-item', { 
+            'has-value': item.value > 0,
+            'has-diary': diaryItems.has(item.name)
+          }]"
           @click="editRecord(item)"
         >
-          <div class="item-icon">
-            <van-icon :name="item.icon" />
-          </div>
+        <div class="item-icon">
+          <van-icon v-if="!item.key.startsWith('custom_')" :name="item.icon" />
+        </div>
           <div class="item-content">
             <div class="item-name">{{ item.name }}</div>
-            <div class="item-input">
-              <input 
-                v-model="item.value" 
-                type="number" 
-                :placeholder="item.placeholder"
-                @input="updateRecord(item)"
-              />
-            </div>
           </div>
           <div class="item-status">
-            <span v-if="item.value > 0" class="recorded">已记录 ></span>
+            <span v-if="diaryItems.has(item.name)" class="diary-recorded">已记录 ></span>
+            <span v-else-if="item.value > 0" class="recorded">已记录 ></span>
             <span v-else class="not-recorded">未记录 ></span>
           </div>
         </div>
@@ -116,7 +112,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
+import { getDefaultMealItems } from '../api/settings'
+import { getMealRecord } from '../api/meal'
 import { getRecordDates } from '../api/meal'
+import { getDiariesByDate } from '../api/diary'
 
 const router = useRouter()
 
@@ -138,24 +137,115 @@ const selectedDateDisplay = computed(() => selectedDate.value.format('YYYY-MM-D'
 const currentTab = ref('record')
 
 // 记录项目
-const recordItems = ref([
-  { key: 'breakfast', name: '早餐', icon: 'heart', value: 0, placeholder: '0' },
-  { key: 'lunch', name: '午餐', icon: 'heart', value: 0, placeholder: '0' },
-  { key: 'dinner', name: '晚餐', icon: 'airplane', value: 0, placeholder: '0' },
-  { key: 'snack', name: '零食', icon: 'running', value: 0, placeholder: '0' },
-  { key: 'custom', name: '', icon: 'plus', value: 0, placeholder: '添加项目' },
-  { key: 'bad-habit', name: '不良习惯', icon: 'thumb-circle-o', value: 0, placeholder: '0' },
-  { key: 'good-habit', name: '良好习惯', icon: 'thumb-circle-o', value: 0, placeholder: '0' }
-])
+interface RecordItem {
+  key: string
+  name: string
+  icon: string
+  value: number
+  placeholder: string
+}
+
+const recordItems = ref<RecordItem[]>([])
+
+// 日记项目
+const diaryItems = ref<Set<string>>(new Set())
+
+// 加载所有项目（默认+自定义）
+const loadAllItems = async () => {
+  try {
+    // 从主页的数据中获取动态项目
+    const dateKey = selectedDate.value.format('YYYY-MM-DD')
+    const record = await getMealRecord(dateKey)
+    
+    // 构建项目列表
+    const allItems: RecordItem[] = []
+    const addedNames = new Set<string>() // 用于去重
+    
+    // 同义词映射
+    const synonyms = {
+      '早餐': ['早饭', '早膳'],
+      '午餐': ['午饭', '中餐', '中饭'],
+      '晚餐': ['晚饭', '夜餐', '夜饭'],
+      '零食': ['小食', '点心'],
+      '饮料': ['饮品', '喝的东西']
+    }
+    
+    // 检查是否为同义词
+    const isSynonym = (name: string, addedNames: Set<string>) => {
+      for (const [key, values] of Object.entries(synonyms)) {
+        if (addedNames.has(key) && values.includes(name)) {
+          return true
+        }
+        if (values.includes(name) && addedNames.has(key)) {
+          return true
+        }
+      }
+      return false
+    }
+    
+    // 添加默认项目
+    const defaultItems = [
+      { key: 'breakfast', name: '早餐', icon: 'heart' },
+      { key: 'lunch', name: '午餐', icon: 'heart' },
+      { key: 'dinner', name: '晚餐', icon: 'airplane' },
+      { key: 'snack', name: '零食', icon: 'running' },
+      { key: 'drink', name: '饮料', icon: 'water' }
+    ]
+    
+    // 先添加默认项目
+    defaultItems.forEach(item => {
+      allItems.push({
+        ...item,
+        value: 0,
+        placeholder: '0'
+      })
+      addedNames.add(item.name)
+    })
+    
+    // 从主页数据中获取动态项目
+    if (record && (record as any).customItems && (record as any).customItems.trim() !== '') {
+      try {
+        const customItems = JSON.parse((record as any).customItems)
+        Object.keys(customItems).forEach((name, index) => {
+          if (!addedNames.has(name) && !isSynonym(name, addedNames)) {
+            allItems.push({
+              key: `custom_${index}`,
+              name: name,
+              icon: '', // 动态项目不显示图标
+              value: 0,
+              placeholder: '0'
+            })
+            addedNames.add(name)
+          }
+        })
+      } catch (error) {
+        console.error('解析customItems失败:', error)
+      }
+    }
+    
+    recordItems.value = allItems
+  } catch (error) {
+    console.error('加载项目失败:', error)
+  }
+}
 
 // 日历日期数据
-const calendarDates = computed(() => {
+interface CalendarDate {
+  key: string
+  day: number
+  isCurrentMonth: boolean
+  isToday: boolean
+  hasRecord: boolean
+  date: dayjs.Dayjs
+}
+
+const calendarDates = computed((): CalendarDate[] => {
   const startOfMonth = currentMonth.value.startOf('month')
   const endOfMonth = currentMonth.value.endOf('month')
   const startOfWeek = startOfMonth.startOf('week').add(1, 'day') // 从周一开始
   const endOfWeek = endOfMonth.endOf('week').add(1, 'day')
   
-  const dates = []
+  const dates: CalendarDate[] = []
   let current = startOfWeek
   
   while (current.isBefore(endOfWeek) || current.isSame(endOfWeek, 'day')) {
@@ -194,20 +284,44 @@ const nextMonth = () => {
 const selectDate = (dateInfo: any) => {
   selectedDate.value = dateInfo.date
   loadRecordData()
+  loadDiaryData()
+  loadAllItems() // 重新加载项目，因为不同日期可能有不同的动态项目
 }
+
 
 // 更新记录
 const updateRecord = (item: any) => {
   console.log('更新记录:', item.name, item.value)
 }
 
+
 // 编辑记录
 const editRecord = (item: any) => {
-  console.log('编辑记录:', item.name)
+  // 跳转到日记页面
+  router.push({
+    path: '/diary',
+    query: {
+      date: selectedDate.value.format('YYYY-MM-DD'),
+      item: item.name
+    }
+  })
+}
+
+// 跳转到统计页面
+const goToStatistics = () => {
+  router.push('/statistics')
+}
+
+// 页面重新获得焦点时重新加载数据
+const handlePageFocus = () => {
+  loadDiaryData()
+  loadAllItems() // 重新加载项目，确保与主页同步
 }
 
 // 有记录的日期列表
 const recordDates = ref<Set<string>>(new Set())
+
+// 有日记记录的项目列表（已在上面声明）
 
 // 加载记录数据
 const loadRecordData = async () => {
@@ -235,6 +349,22 @@ const loadRecordData = async () => {
   }
 }
 
+// 加载日记数据
+const loadDiaryData = async () => {
+  try {
+    const response = await getDiariesByDate(selectedDate.value.format('YYYY-MM-DD'))
+    if (response.data.success) {
+      const diaries = response.data.data || []
+      const itemsWithDiary = new Set<string>(diaries.map((diary: any) => diary.itemName))
+      diaryItems.value = itemsWithDiary
+      console.log('加载日记数据成功:', diaryItems.value)
+    }
+  } catch (error) {
+    console.error('加载日记数据失败:', error)
+    diaryItems.value = new Set<string>()
+  }
+}
+
 // 切换标签页
 const switchTab = (tab: string) => {
   currentTab.value = tab
@@ -257,6 +387,11 @@ onMounted(() => {
   // 每秒更新时间
   setInterval(updateTime, 1000)
   loadRecordData()
+  loadAllItems()
+  loadDiaryData()
+  
+  // 监听页面焦点，从日记页面返回时重新加载数据
+  window.addEventListener('focus', handlePageFocus)
 })
 </script>
 
@@ -516,6 +651,11 @@ onMounted(() => {
   background: #e8f5e8;
 }
 
+.record-item.has-diary {
+  background: #f0fdf4;
+  border: 1px solid #22c55e;
+}
+
 .item-icon {
   width: 28px;
   height: 28px;
@@ -542,14 +682,6 @@ onMounted(() => {
   min-width: 60px;
 }
 
-.item-input input {
-  width: 60px;
-  padding: 4px 6px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  text-align: center;
-  font-size: 12px;
-}
 
 .item-status {
   color: #666;
@@ -558,6 +690,11 @@ onMounted(() => {
 
 .recorded {
   color: #4caf50;
+}
+
+.diary-recorded {
+  color: #22c55e;
+  font-weight: bold;
 }
 
 .not-recorded {

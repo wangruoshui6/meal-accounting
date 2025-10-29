@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Token测试</title>
+</head>
+<body>
+    <h1>Token状态测试</h1>
+    <div id="token-status"></div>
+    <button onclick="checkToken()">检查Token</button>
+    <button onclick="login()">登录</button>
+    <button onclick="testSave()">测试保存</button>
+    
+    <script>
+        function checkToken() {
+            const token = localStorage.getItem('token');
+            const user = localStorage.getItem('user');
+            document.getElementById('token-status').innerHTML = `
+                <p>Token: ${token ? '存在' : '不存在'}</p>
+                <p>User: ${user ? JSON.parse(user).username : '不存在'}</p>
+                <p>Token值: ${token || '无'}</p>
+            `;
+        }
+        
+        async function login() {
+            try {
+                const response = await fetch('http://localhost:8080/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: '王金彪',
+                        password: '123456'
+                    })
+                });
+                
+                const result = await response.json();
+                console.log('登录结果:', result);
+                
+                if (result.success && result.token) {
+                    localStorage.setItem('token', result.token);
+                    localStorage.setItem('user', JSON.stringify(result.user));
+                    alert('登录成功');
+                    checkToken();
+                } else {
+                    alert('登录失败: ' + result.message);
+                }
+            } catch (error) {
+                console.error('登录错误:', error);
+                alert('登录错误: ' + error.message);
+            }
+        }
+        
+        async function testSave() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('请先登录');
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:8080/api/meal/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        recordDate: '2025-10-08',
+                        breakfast: 1,
+                        lunch: 18,
+                        dinner: 0,
+                        snack: 0,
+                        drink: 0,
+                        customItems: {
+                            '午饭': 0
+                        }
+                    })
+                });
+                
+                const result = await response.json();
+                console.log('保存结果:', result);
+                alert('保存结果: ' + JSON.stringify(result));
+            } catch (error) {
+                console.error('保存错误:', error);
+                alert('保存错误: ' + error.message);
+            }
+        }
+        
+        // 页面加载时检查token
+        window.onload = checkToken;
+    </script>
+</body>
+</html>

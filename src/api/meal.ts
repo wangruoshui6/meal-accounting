@@ -1,7 +1,7 @@
 import request from './request'
 
 export interface MealRecordRequest {
-  date: string
+  recordDate: string
   breakfast: number
   lunch: number
   dinner: number
@@ -57,5 +57,15 @@ export const clearAllData = (date: string) => {
 // 获取指定月份有记录的日期列表
 export const getRecordDates = (year: number, month: number) => {
   return request.get(`/api/meal/record-dates/${year}/${month}`)
+}
+
+// 获取统计数据
+export const getMealRecordsByDateRange = (startDate: string, endDate: string) => {
+  return request.get(`/api/meal/statistics?startDate=${startDate}&endDate=${endDate}`)
+}
+
+// 获取用户统计概览
+export const getUserStatistics = () => {
+  return request.get('/api/meal/user-statistics')
 }
 
