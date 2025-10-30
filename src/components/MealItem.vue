@@ -74,12 +74,19 @@ const onClick = () => {
 
 // 获得焦点时的处理
 const onFocus = () => {
-  isFocused.value = true
+  isFocused.value = true;
   // 如果当前值是0，清空输入框
   if (localAmount.value === '0' || localAmount.value === '0.00') {
-    localAmount.value = ''
+    localAmount.value = '';
   }
-}
+  nextTick(() => {
+    setTimeout(() => {
+      if (inputRef.value) {
+        inputRef.value.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 200);
+  });
+};
 
 const onAmountInput = (e: Event) => {
   let val = (e.target as HTMLInputElement).value;
