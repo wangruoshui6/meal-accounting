@@ -2,9 +2,9 @@ import axios from 'axios'
 import { showToast } from 'vant'
 
 const request = axios.create({
-  // baseURL: 'http://101.201.254.71',
+  baseURL: 'http://101.201.254.71',
   // baseURL: 'http://localhost:8080',
-  baseURL: 'http://10.22.193.147:8080/',
+  // baseURL: 'http://10.22.193.147:8080/',
   timeout: 10000
 })
 
