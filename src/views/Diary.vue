@@ -1,10 +1,5 @@
 <template>
   <div class="diary-container">
-    <!-- 顶部状态栏 -->
-    <div class="status-bar">
-      <div class="time">{{ currentTime }}</div>
-    </div>
-
     <!-- 头部导航 -->
     <div class="header">
       <div class="header-left">
@@ -55,9 +50,6 @@ import { saveDiary, getDiaryContent } from '../api/diary'
 
 const router = useRouter()
 const route = useRoute()
-
-// 当前时间
-const currentTime = ref(dayjs().format('HH:mm'))
 
 // 选中的日期和项目
 const selectedDate = ref(dayjs())
@@ -116,11 +108,6 @@ const saveDiaryData = async () => {
   }
 }
 
-// 更新时间
-const updateTime = () => {
-  currentTime.value = dayjs().format('HH:mm')
-}
-
 // 加载现有日记内容
 const loadExistingDiary = async () => {
   if (!selectedItem.value) return
@@ -152,9 +139,6 @@ onMounted(async () => {
   
   // 加载现有日记内容
   await loadExistingDiary()
-  
-  // 每秒更新时间
-  setInterval(updateTime, 1000)
 })
 </script>
 
@@ -167,18 +151,6 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
 }
-
-/* 状态栏 */
-.status-bar {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 8px 16px;
-  background: #000;
-  color: white;
-  font-size: 14px;
-}
-
 
 /* 头部 */
 .header {

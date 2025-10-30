@@ -1,10 +1,5 @@
 <template>
   <div class="calendar-container">
-    <!-- 顶部状态栏 -->
-    <div class="status-bar">
-      <div class="time">{{ currentTime }}</div>
-    </div>
-
     <!-- 头部导航 -->
     <div class="header">
       <div class="header-center">
@@ -108,9 +103,6 @@ import { getRecordDates } from '../api/meal'
 import { getDiariesByDate } from '../api/diary'
 
 const router = useRouter()
-
-// 当前时间
-const currentTime = ref(dayjs().format('HH:mm'))
 
 // 当前月份和年份
 const currentMonth = ref(dayjs())
@@ -361,17 +353,10 @@ const switchTab = (tab: string) => {
   }
 }
 
-// 更新时间
-const updateTime = () => {
-  currentTime.value = dayjs().format('HH:mm')
-}
-
 onMounted(() => {
   // 设置当前标签页状态
   currentTab.value = 'record'
   
-  // 每秒更新时间
-  setInterval(updateTime, 1000)
   loadRecordData()
   loadAllItems()
   loadDiaryData()
@@ -390,18 +375,6 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
 }
-
-/* 状态栏 */
-.status-bar {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 8px 16px;
-  background: #fff;
-  font-size: 14px;
-  color: #333;
-}
-
 
 /* 头部 */
 .header {

@@ -1,13 +1,5 @@
 <template>
   <div class="me-container">
-    <!-- 顶部状态栏 -->
-    <div class="status-bar">
-      <div class="time">{{ currentTime }}</div>
-    </div>
-
-    <!-- 下拉刷新 -->
-    <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
-
     <!-- 用户信息头部 -->
     <div class="user-header">
       <div class="user-avatar">
@@ -109,7 +101,6 @@
         <span>我</span>
       </div>
     </div>
-    </van-pull-refresh>
   </div>
 </template>
 
@@ -195,11 +186,6 @@ const handleLogout = async () => {
       router.replace('/auth')
     }
   }
-}
-
-// 更新时间
-const updateTime = () => {
-  currentTime.value = dayjs().format('HH:mm')
 }
 
 // 加载用户统计数据
@@ -344,7 +330,7 @@ onMounted(async () => {
   showYearTotal()
   
   // 每秒更新时间
-  setInterval(updateTime, 1000)
+  // setInterval(updateTime, 1000) // 删除
 })
 </script>
 
@@ -357,18 +343,6 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
 }
-
-/* 状态栏 */
-.status-bar {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 8px 16px;
-  background: #fff;
-  font-size: 14px;
-  color: #333;
-}
-
 
 /* 用户信息头部 */
 .user-header {
