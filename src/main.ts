@@ -12,8 +12,6 @@ import Me from './views/Me.vue'
 import Settings from './views/Settings.vue'
 import Auth from './views/Auth.vue'
 import Diary from './views/Diary.vue'
-import Statistics from './views/Statistics.vue'
-
 // 路由配置
 const routes = [
   { path: '/', component: MealRecord },
@@ -21,8 +19,7 @@ const routes = [
   { path: '/me', component: Me },
   { path: '/settings', component: Settings },
   { path: '/auth', component: Auth },
-  { path: '/diary', component: Diary },
-  { path: '/statistics', component: Statistics }
+  { path: '/diary', component: Diary }
 ]
 
 const router = createRouter({

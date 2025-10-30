@@ -3,10 +3,6 @@
     <!-- 顶部状态栏 -->
     <div class="status-bar">
       <div class="time">{{ currentTime }}</div>
-      <div class="status-icons">
-        <span class="wifi">📶</span>
-        <span class="battery">🔋34%</span>
-      </div>
     </div>
 
     <!-- 下拉刷新 -->
@@ -25,16 +21,6 @@
 
     <!-- 功能菜单 -->
     <div class="menu-section">
-      <div class="menu-item" @click="goToSettings">
-        <van-icon name="setting-o" />
-        <span>设置</span>
-        <van-icon name="arrow" />
-      </div>
-      <div class="menu-item" @click="goToStatistics">
-        <van-icon name="chart-trending-o" />
-        <span>统计报告</span>
-        <van-icon name="arrow" />
-      </div>
       <div class="menu-item" @click="goToExport">
         <van-icon name="down" />
         <span>数据导出</span>
@@ -43,6 +29,11 @@
       <div class="menu-item" @click="goToHelp">
         <van-icon name="question-o" />
         <span>帮助中心</span>
+        <van-icon name="arrow" />
+      </div>
+      <div class="menu-item" @click="handleLogout">
+        <van-icon name="logout" />
+        <span>退出登录</span>
         <van-icon name="arrow" />
       </div>
     </div>
@@ -66,28 +57,6 @@
       </div>
     </div>
 
-    <!-- 最近活动 -->
-    <div class="recent-activity">
-      <div class="section-title">最近活动</div>
-      <div class="activity-list">
-        <div class="activity-item">
-          <div class="activity-icon">🍽️</div>
-          <div class="activity-content">
-            <div class="activity-title">今日用餐记录</div>
-            <div class="activity-desc">已记录今日的餐饮消费</div>
-          </div>
-          <div class="activity-time">{{ dayjs().format('HH:mm') }}</div>
-        </div>
-        <div class="activity-item">
-          <div class="activity-icon">📈</div>
-          <div class="activity-content">
-            <div class="activity-title">查看统计报告</div>
-            <div class="activity-desc">了解消费趋势和习惯</div>
-          </div>
-          <div class="activity-time">昨天</div>
-        </div>
-      </div>
-    </div>
 
     <!-- 底部导航 -->
     <div class="bottom-nav">
@@ -113,7 +82,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import { getUserStatistics } from '../api/meal'
-import { showToast } from 'vant'
+import { logout } from '../api/auth'
+import { showToast, showConfirmDialog } from 'vant'
 
 const router = useRouter()
 
@@ -146,13 +116,6 @@ const switchTab = (tab: string) => {
 }
 
 // 菜单点击事件
-const goToSettings = () => {
-  router.push('/settings')
-}
-
-const goToStatistics = () => {
-  router.push('/statistics')
-}
 
 const goToExport = () => {
   showToast('数据导出功能开发中...')
@@ -160,6 +123,35 @@ const goToExport = () => {
 
 const goToHelp = () => {
   showToast('帮助中心功能开发中...')
+}
+
+// 登出功能
+const handleLogout = async () => {
+  try {
+    await showConfirmDialog({
+      title: '退出登录',
+      message: '确定要退出登录吗？'
+    })
+    
+    const res = await logout()
+    if (res.success) {
+      // 清除本地存储
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      
+      showToast('已退出登录')
+      router.replace('/auth')
+    } else {
+      showToast(res.message || '登出失败')
+    }
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      // 即使API失败，也清除本地存储并跳转
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      router.replace('/auth')
+    }
+  }
 }
 
 // 更新时间
@@ -283,7 +275,7 @@ onMounted(() => {
 /* 状态栏 */
 .status-bar {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   padding: 8px 16px;
   background: #fff;
@@ -291,10 +283,6 @@ onMounted(() => {
   color: #333;
 }
 
-.status-icons {
-  display: flex;
-  gap: 8px;
-}
 
 /* 用户信息头部 */
 .user-header {
@@ -413,66 +401,6 @@ onMounted(() => {
   color: #666;
 }
 
-/* 最近活动 */
-.recent-activity {
-  background: white;
-  margin: 8px;
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.section-title {
-  font-size: 16px;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 12px;
-}
-
-.activity-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.activity-item {
-  display: flex;
-  align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.activity-item:last-child {
-  border-bottom: none;
-}
-
-.activity-icon {
-  font-size: 20px;
-  margin-right: 12px;
-  width: 32px;
-  text-align: center;
-}
-
-.activity-content {
-  flex: 1;
-}
-
-.activity-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 2px;
-}
-
-.activity-desc {
-  font-size: 12px;
-  color: #666;
-}
-
-.activity-time {
-  font-size: 12px;
-  color: #999;
-}
 
 /* 底部导航 */
 .bottom-nav {

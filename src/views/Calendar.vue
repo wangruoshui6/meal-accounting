@@ -3,25 +3,16 @@
     <!-- 顶部状态栏 -->
     <div class="status-bar">
       <div class="time">{{ currentTime }}</div>
-      <div class="status-icons">
-        <span class="wifi">📶</span>
-        <span class="battery">🔋34%</span>
-      </div>
     </div>
 
     <!-- 头部导航 -->
     <div class="header">
-      <div class="header-left">
-        <van-button type="primary" size="small" class="stats-btn" @click="goToStatistics">统计</van-button>
-      </div>
       <div class="header-center">
         <van-icon name="arrow-left" @click="prevMonth" class="nav-icon" />
         <span class="month-year">{{ currentMonthYear }}</span>
         <van-icon name="arrow-left" @click="nextMonth" class="nav-icon" style="transform: rotate(180deg);" />
       </div>
-      <div class="header-right">
-        <van-icon name="ellipsis" class="menu-icon" />
-      </div>
+      
     </div>
 
     <!-- 日历组件 -->
@@ -57,11 +48,10 @@
     <div class="daily-records">
       <div class="record-header">
         <h3 class="record-title">{{ selectedDateDisplay }}的记录(今天) 签</h3>
-        <van-button type="danger" size="small" class="delete-btn">删除签到</van-button>
       </div>
       
       <div class="record-divider">
-        <span class="divider-text">功过格</span>
+        <span class="divider-text">记录详情</span>
       </div>
 
       <!-- 记录项目列表 -->
@@ -307,10 +297,6 @@ const editRecord = (item: any) => {
   })
 }
 
-// 跳转到统计页面
-const goToStatistics = () => {
-  router.push('/statistics')
-}
 
 // 页面重新获得焦点时重新加载数据
 const handlePageFocus = () => {
@@ -408,7 +394,7 @@ onMounted(() => {
 /* 状态栏 */
 .status-bar {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   padding: 8px 16px;
   background: #fff;
@@ -416,10 +402,6 @@ onMounted(() => {
   color: #333;
 }
 
-.status-icons {
-  display: flex;
-  gap: 8px;
-}
 
 /* 头部 */
 .header {
@@ -429,10 +411,6 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-}
-
-.header-left {
-  flex: 0 0 auto;
 }
 
 .header-center {
@@ -473,13 +451,6 @@ onMounted(() => {
 .nav-icon:hover, .cloud-icon:hover, .menu-icon:hover {
   background: rgba(255, 255, 255, 0.3);
 }
-
-.stats-btn {
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: white;
-}
-
 
 /* 日历 */
 .calendar {
@@ -603,13 +574,7 @@ onMounted(() => {
   margin: 0;
 }
 
-.delete-btn {
-  background: #ff5722;
-  border: none;
-  color: white;
-  font-size: 12px;
-  padding: 6px 12px;
-}
+
 
 .record-divider {
   border-top: 1px solid #eee;

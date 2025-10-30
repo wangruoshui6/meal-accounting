@@ -3,10 +3,6 @@
     <!-- 顶部状态栏 -->
     <div class="status-bar">
       <div class="time">{{ currentTime }}</div>
-      <div class="status-icons">
-        <span class="wifi">📶</span>
-        <span class="battery">🔋34%</span>
-      </div>
     </div>
 
     <!-- 头部导航 -->
@@ -26,7 +22,7 @@
     <div class="diary-content">
       <div class="date-info">
         <div class="date-text">{{ selectedDateDisplay }}</div>
-        <div class="diary-title">三省吾身</div>
+        <div class="diary-title">饮食体验</div>
       </div>
       
       <div class="diary-editor">
@@ -45,16 +41,7 @@
         <van-icon name="info-o" class="info-icon" />
         <span>日记是私密内容，仅自己可知</span>
       </div>
-      <div class="toolbar">
-        <div class="tool-item">
-          <van-icon name="photo-o" class="tool-icon" />
-          <span>图片</span>
-        </div>
-        <div class="tool-item">
-          <van-icon name="setting-o" class="tool-icon" />
-          <span>排版</span>
-        </div>
-      </div>
+      
     </div>
   </div>
 </template>
@@ -184,7 +171,7 @@ onMounted(async () => {
 /* 状态栏 */
 .status-bar {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   padding: 8px 16px;
   background: #000;
@@ -192,10 +179,6 @@ onMounted(async () => {
   font-size: 14px;
 }
 
-.status-icons {
-  display: flex;
-  gap: 8px;
-}
 
 /* 头部 */
 .header {

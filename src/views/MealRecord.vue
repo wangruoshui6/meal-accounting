@@ -232,10 +232,9 @@
             </div>
           </div>
           
-          <div class="add-item-section">
+          <div class="new-item-section">
             <van-field
               v-model="newItemName"
-              placeholder="输入新项目名称"
               :border="false"
               class="new-item-input"
               @keyup.enter="addSettingsItem"
@@ -366,9 +365,7 @@ const addMealItem = async () => {
   // 立即保存到后端
   try {
     await saveRecord()
-    console.log('新项目已保存到后端')
   } catch (error) {
-    console.error('保存新项目失败:', error)
     showToast('添加成功，但保存失败')
   }
   
@@ -388,12 +385,10 @@ const cancelAdd = () => {
 // 清除所有数据
 const clearAllDataLocal = async () => {
   try {
-    console.log('开始清除数据...')
     
     // 调用后端API清空数据库（后端会清空所有字段，包括customItems）
     const response = await clearAllData(selectedDate.value.format('YYYY-MM-DD'))
     
-    console.log('后端清除响应:', response.data)
     
     if (response.data.success) {
       // 重新加载数据，显示后端清空后的状态
@@ -404,7 +399,6 @@ const clearAllDataLocal = async () => {
       showToast('清除失败，请重试')
     }
   } catch (error) {
-    console.error('清除数据失败:', error)
     showToast('清除失败，请重试')
   }
 }
@@ -461,31 +455,29 @@ const confirmDelete = async () => {
       return
     }
     
-    console.log('准备删除项目:', itemNames)
-    console.log('当前日期:', selectedDate.value.format('YYYY-MM-DD'))
-    
     // 先调用后端API删除
     try {
       const response = await deleteCustomItems(selectedDate.value.format('YYYY-MM-DD'), itemNames)
-      console.log('后端删除响应:', response.data)
       
       if (response.data.success) {
-        console.log('后端删除成功')
-        // 后端删除成功后，再从前端列表中删除
+        // 清理localStorage中的数据，避免刷新后恢复
+        const dateKey = selectedDate.value.format('YYYY-MM-DD')
+        localStorage.removeItem('meal-record-' + dateKey)
+        
+        // 直接从前端列表中删除项目，避免重新加载导致缓存问题
         selectedDeleteItems.value.forEach(key => {
           const index = meals.value.findIndex(meal => meal.key === key)
           if (index > -1) {
             meals.value.splice(index, 1)
           }
         })
+        
         showToast(`已删除 ${itemNames.length} 个项目`)
       } else {
-        console.log('后端删除失败:', response.data.message)
         showToast(`删除失败: ${response.data.message}`)
         return
       }
     } catch (backendError) {
-      console.error('后端删除出错:', backendError)
       showToast('删除失败，请检查网络连接')
       return
     }
@@ -494,7 +486,6 @@ const confirmDelete = async () => {
     showDeleteModal.value = false
     
   } catch (error) {
-    console.error('删除项目失败:', error)
     showToast('删除失败，请重试')
   }
 }
@@ -523,12 +514,9 @@ const selectedDateStr = ref('')
 
 // 跳转到设置页面
 const goToSettings = () => {
-  console.log('设置按钮被点击了')
-  console.log('显示设置弹窗:', showSettingsModal.value)
   // 加载当前设置
   loadSettings()
   showSettingsModal.value = true
-  console.log('设置弹窗状态:', showSettingsModal.value)
 }
 
 // 加载设置
@@ -542,7 +530,6 @@ const loadSettings = async () => {
       settingsMealItems.value = defaultMealItems.value.map(name => ({ name }))
     }
   } catch (error) {
-    console.error('加载设置失败:', error)
     settingsMealItems.value = defaultMealItems.value.map(name => ({ name }))
   }
 }
@@ -583,12 +570,10 @@ const saveSettings = async () => {
       return
     }
     
-    console.log('准备保存的项目:', uniqueItems)
     
     // 保存到后端
     const response = await saveDefaultMealItems(uniqueItems)
     
-    console.log('保存响应:', response)
     
     if (response.success) {
       showToast('设置保存成功')
@@ -600,7 +585,6 @@ const saveSettings = async () => {
       showToast(response.message || '保存失败')
     }
   } catch (error) {
-    console.error('保存设置失败:', error)
     showToast('保存失败，请重试')
   }
 }
@@ -664,7 +648,6 @@ const loadDefaultMealItems = async () => {
       defaultMealItems.value = response.data.data || ['早饭', '午饭', '晚饭', '零食', '饮料']
     }
   } catch (error) {
-    console.error('加载默认餐饮项目失败:', error)
   }
 }
 
@@ -674,18 +657,14 @@ const loadRecordDates = async () => {
     const year = currentMonth.value.year()
     const month = currentMonth.value.month() + 1
     
-    console.log('请求参数:', { year, month })
     
     const response = await getRecordDates(year, month)
-    console.log('API响应:', response)
     
     if (response.data.success) {
       const dates = response.data.data || []
       recordDates.value = new Set(dates)
-      console.log('记录日期:', dates)
     }
   } catch (error) {
-    console.error('加载记录日期失败:', error)
   }
 }
 
@@ -726,12 +705,9 @@ const calendarDays = computed(() => {
 
 // 打开日期选择器
 const openDatePicker = () => {
-  console.log('打开日期选择器')
-  console.log('当前记录日期:', Array.from(recordDates.value))
   currentMonth.value = selectedDate.value.clone()
   tempSelectedDate.value = selectedDate.value.clone()
   selectedDateStr.value = selectedDate.value.format('YYYY-MM-DD')
-  console.log('初始化selectedDateStr:', selectedDateStr.value)
   showDatePicker.value = true
 }
 
@@ -753,7 +729,6 @@ const selectDate = (day: any) => {
     const newDate = day.date.clone()
     tempSelectedDate.value = newDate
     selectedDateStr.value = newDate.format('YYYY-MM-DD')
-    console.log('设置选中日期:', selectedDateStr.value)
     
     // 直接修改DOM样式
     setTimeout(() => {
@@ -772,9 +747,6 @@ const selectDate = (day: any) => {
         targetElement.style.color = 'white'
         targetElement.style.border = '3px solid #E65100'
         targetElement.style.transform = 'scale(1.1)'
-        console.log('直接设置DOM样式成功')
-      } else {
-        console.log('找不到目标元素')
       }
     }, 50)
   }
@@ -842,7 +814,6 @@ const initializeMeals = () => {
 
 // 日期变化处理
 const onDateChange = async () => {
-  console.log('日期变化:', dateInput.value)
   selectedDate.value = dayjs(dateInput.value)
   currentDate.value = selectedDate.value.format('YYYY年MM月DD日')
   await loadData()
@@ -885,9 +856,7 @@ const saveRecord = async () => {
       customItems: Object.keys(customItems).length > 0 ? customItems : undefined
     }
 
-    console.log('准备保存的数据:', recordData)
     const response = await saveMealRecord(recordData)
-    console.log('保存响应:', response)
     showToast('保存成功！')
     
     // 保存成功后更新记录日期
@@ -895,7 +864,6 @@ const saveRecord = async () => {
     
     // 保存成功后不清空数据，让用户看到保存的内容
   } catch (error) {
-    console.error('保存失败:', error)
     showToast('保存失败，请重试')
   }
 }
@@ -910,7 +878,6 @@ const loadData = async () => {
     initializeMeals()
     
     if (record) {
-      console.log('从后端加载的数据:', record)
       // 从后端加载数据
       meals.value.forEach(meal => {
         switch (meal.key) {
@@ -961,7 +928,6 @@ const loadData = async () => {
             })
           })
         } catch (error) {
-          console.error('解析动态项目失败:', error)
         }
       } else {
         // 如果customItems为空，移除所有动态项目（包括custom_和default_前缀的）
@@ -983,7 +949,6 @@ const loadData = async () => {
             }
           })
         } catch (error) {
-          console.error('加载本地数据失败:', error)
           meals.value.forEach(meal => {
             meal.amount = 0
           })
@@ -996,7 +961,6 @@ const loadData = async () => {
       }
     }
   } catch (error) {
-    console.error('加载数据失败:', error)
     // 如果后端加载失败，重置所有数据为0
     meals.value.forEach(meal => {
       meal.amount = 0
@@ -1516,5 +1480,182 @@ onMounted(async () => {
   height: 36px;
   font-size: 14px;
   border-radius: 6px;
+}
+
+/* 设置弹窗样式 */
+.settings-popup {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.settings-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.settings-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.settings-content {
+  padding: 20px;
+}
+
+.settings-desc {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.settings-list {
+  margin-bottom: 20px;
+}
+
+.settings-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: move;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.settings-item:last-child {
+  border-bottom: none;
+}
+
+.settings-item:hover {
+  background-color: #f8f9fa;
+}
+
+.settings-item.dragging {
+  opacity: 0.5;
+  transform: rotate(2deg);
+}
+
+.settings-item .drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-right: 12px;
+  color: #999;
+  cursor: grab;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.settings-item .drag-handle:hover {
+  color: #667eea;
+  background-color: #f0f0f0;
+}
+
+.settings-item .drag-handle:active {
+  cursor: grabbing;
+}
+
+.settings-item .item-name {
+  flex: 1;
+  font-size: 14px;
+  color: #333;
+}
+
+.settings-item .remove-btn {
+  background: #ff4757;
+  color: white;
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.settings-item .remove-btn:hover {
+  background: #ff3742;
+  transform: scale(1.1);
+}
+
+.new-item-section {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.new-item-input {
+  flex: 1;
+  height: 40px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background: white;
+  min-width: 0; /* 确保可以收缩 */
+  display: flex;
+  align-items: center;
+}
+
+.new-item-input :deep(.van-field__control) {
+  height: 38px;
+  font-size: 14px;
+  padding: 0 12px;
+  border: none;
+  outline: none;
+  background: transparent;
+  width: 100%;
+  line-height: 38px;
+}
+
+.new-item-input :deep(.van-field__body) {
+  height: 38px;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.new-item-input :deep(.van-field__control:focus) {
+  border: none;
+  outline: none;
+  box-shadow: none;
+}
+
+.add-btn {
+  width: 60px !important;
+  height: 40px !important;
+  font-size: 12px !important;
+  flex-shrink: 0;
+  min-width: 60px !important;
+}
+
+.settings-footer {
+  display: flex;
+  gap: 12px;
+  padding: 16px 20px;
+  background: #f8f9fa;
+  border-top: 1px solid #e0e0e0;
+}
+
+.cancel-btn {
+  flex: 1;
+  height: 40px;
+  font-size: 14px;
+}
+
+.save-btn {
+  flex: 1;
+  height: 40px;
+  font-size: 14px;
 }
 </style>
