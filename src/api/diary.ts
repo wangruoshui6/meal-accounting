@@ -6,26 +6,26 @@ export const saveDiary = (data: {
   content: string
   date: string
 }) => {
-  return request.post('/api/diary/save', data)
+  return request.post('/diary/save', data)
 }
 
 // 获取指定日期和项目的日记内容
 export const getDiaryContent = (itemName: string, date: string) => {
-  return request.get('/api/diary/content', {
+  return request.get('/diary/content', {
     params: { itemName, date }
   })
 }
 
 // 获取指定日期的所有日记
 export const getDiariesByDate = (date: string) => {
-  return request.get('/api/diary/list', {
+  return request.get('/diary/list', {
     params: { date }
   })
 }
 
 // 删除日记
 export const deleteDiary = (itemName: string, date: string) => {
-  return request.delete('/api/diary/delete', {
+  return request.delete('/diary/delete', {
     params: { itemName, date }
   })
 }

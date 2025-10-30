@@ -13,7 +13,7 @@ export interface AuthResult {
 
 export const register = async (payload: { username: string; password: string }): Promise<AuthResult> => {
   try {
-    const res = await request.post('/api/auth/register', payload)
+    const res = await request.post('/auth/register', payload)
     return { success: true, ...(res.data || {}) }
   } catch (e: any) {
     const message = e?.response?.data?.message || e?.message || '注册失败'
@@ -23,7 +23,7 @@ export const register = async (payload: { username: string; password: string }):
 
 export const login = async (payload: { username: string; password: string }): Promise<AuthResult> => {
   try {
-    const res = await request.post('/api/auth/login', payload)
+    const res = await request.post('/auth/login', payload)
     return { success: true, ...(res.data || {}) }
   } catch (e: any) {
     const message = e?.response?.data?.message || e?.message || '登录失败'
@@ -33,7 +33,7 @@ export const login = async (payload: { username: string; password: string }): Pr
 
 export const logout = async (): Promise<AuthResult> => {
   try {
-    const res = await request.post('/api/auth/logout', {})
+    const res = await request.post('/auth/logout', {})
     return { success: true, ...(res.data || {}) }
   } catch (e: any) {
     return { success: false, message: e?.message || '登出失败' }
