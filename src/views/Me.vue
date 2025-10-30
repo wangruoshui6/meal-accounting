@@ -57,6 +57,42 @@
       </div>
     </div>
 
+    <!-- 年度账单折叠面板 -->
+    <div class="year-stat-container">
+      <div class="year-title flex-row" @click="() => { statPanelOpen = !statPanelOpen; showYearTotal() }">
+        <div class="title-area">
+          <span class="bill-icon">📆</span>
+          <span class="bill-label-main">年度账单</span>
+          <span class="bill-year">{{ yearStatistics?.year || '' }}</span>
+        </div>
+        <div class="total-area">
+          <span class="bill-label">总支出</span>
+          <span class="bill-money">¥{{ yearStatistics?.yearTotal?.toFixed(2) || '0.00' }}</span>
+        </div>
+      </div>
+      <div class="bill-tip-row">
+        <span class="bill-tip" v-if="!statPanelOpen" @click="() => { statPanelOpen = true; showYearTotal() }">（点击展开月度明细）</span>
+        <span class="collapse-tip" v-if="statPanelOpen" @click="() => { statPanelOpen = false; showYearTotal() }">点击隐藏</span>
+      </div>
+      <transition name="fade">
+        <div v-show="statPanelOpen" class="month-table">
+          <div class="month-header">
+            <span>月份</span>
+            <span>总消费(¥)</span>
+            <span>日均(¥)</span>
+            <span>记账天</span>
+          </div>
+          <div v-for="m in 12" :key="m" :class="['month-row', {active: selectedMonth===m}]"
+               @click="handleSelectMonth(m)">
+            <span>{{ monthNames[m-1] }}</span>
+            <span>{{ yearStatistics?.months[m-1]?.total?.toFixed(2) || '0.00' }}</span>
+            <span>{{ yearStatistics?.months[m-1]?.avg?.toFixed(2) || '0.00' }}</span>
+            <span>{{ yearStatistics?.months[m-1]?.days || 0 }}</span>
+          </div>
+        </div>
+      </transition>
+    </div>
+
 
     <!-- 底部导航 -->
     <div class="bottom-nav">
@@ -81,7 +117,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
-import { getUserStatistics } from '../api/meal'
+import { getUserStatistics, getYearStatistics } from '../api/meal'
 import { logout } from '../api/auth'
 import { showToast, showConfirmDialog } from 'vant'
 
@@ -100,6 +136,13 @@ const username = ref('用户')
 const totalDays = ref(0)
 const totalAmount = ref('0.00')
 const avgDaily = ref('0.00')
+
+// 年度统计
+const yearStatistics = ref<{ year: number; months: any[]; yearTotal: number } | null>(null)
+const statPanelOpen = ref(false)
+const selectedMonth = ref<number | null>(null)
+
+const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月']
 
 // 加载状态
 const loading = ref(false)
@@ -180,6 +223,45 @@ const loadUserStatistics = async () => {
   }
 }
 
+// 加载年度账单
+const loadYearStatistics = async () => {
+  try {
+    const resp = await getYearStatistics()
+    if (resp.data && resp.data.success) {
+      yearStatistics.value = resp.data.data
+    } else {
+      showToast(resp.data.message || '获取年度账单失败')
+    }
+  } catch (e) {
+    showToast('获取年度账单失败')
+  }
+}
+
+// 月份点击
+const handleSelectMonth = (m: number) => {
+  selectedMonth.value = m
+  if (yearStatistics.value) {
+    const stat = yearStatistics.value.months.find(x => x.month === m)
+    if (stat) {
+      totalDays.value = stat.days
+      totalAmount.value = Number(stat.total || 0).toFixed(2)
+      avgDaily.value = Number(stat.avg || 0).toFixed(2)
+    }
+  }
+}
+
+// 切回年度总览
+const showYearTotal = () => {
+  selectedMonth.value = null
+  if (yearStatistics.value) {
+    const t = yearStatistics.value.months.reduce((acc, cur) => acc + (Number(cur.days) || 0), 0)
+    totalDays.value = t
+    totalAmount.value = Number(yearStatistics.value.yearTotal || 0).toFixed(2)
+    const avg = t > 0 ? Number(yearStatistics.value.yearTotal) / t : 0
+    avgDaily.value = avg.toFixed(2)
+  }
+}
+
 // 格式化金额
 const formatAmount = (amount: number): string => {
   return amount.toFixed(2)
@@ -247,7 +329,7 @@ const onRefresh = async () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   // 设置当前标签页状态
   currentTab.value = 'me'
   
@@ -256,6 +338,10 @@ onMounted(() => {
   
   // 加载统计数据
   loadUserStatistics()
+
+  // 加载年度账单
+  await loadYearStatistics()
+  showYearTotal()
   
   // 每秒更新时间
   setInterval(updateTime, 1000)
@@ -400,6 +486,96 @@ onMounted(() => {
   font-size: 12px;
   color: #666;
 }
+
+.year-stat-container {
+  margin: 14px 8px 0 8px;
+  background: #f6f7fa;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(100,72,206,0.08);
+  padding: 12px 10px 4px 10px;
+}
+.flex-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 36px;
+}
+.title-area {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.bill-icon {
+  font-size: 20px;
+  margin-right: 2px;
+}
+.bill-label-main {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2a2a4a;
+  margin-right: 2px;
+  letter-spacing:0;
+}
+.bill-year {
+  font-size: 15px;
+  font-weight: 400;
+  color: #999;
+  margin-left: 3px;
+}
+.total-area {
+  display: inline-flex;
+  align-items: baseline;
+  font-size: 17px;
+  gap: 4px;
+}
+.bill-label {
+  font-size: 16px;
+  color: #49416d;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+.bill-money {
+  font-size: 19px;
+  color: #8050df;
+  font-weight: 700;
+  margin-left: 2px;
+  letter-spacing: 0.5px;
+}
+.bill-tip-row {line-height:1.26;}
+.bill-tip {
+  font-size: 13px;
+  color: #aaa;
+  margin-left: 4px;
+  cursor: pointer;
+}
+.collapse-tip {
+  font-size: 12px;
+  color: #aaa;
+  margin-left: 4px;
+  cursor: pointer;
+}
+.month-table {
+  margin-top: 10px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 1px 6px rgba(127,86,233,0.05);
+  overflow:hidden;
+}
+.month-header, .month-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 6px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 15px;
+}
+.month-header { background: #f1efff; font-weight:bold; color:#8050df; }
+.month-row:last-child{border-bottom:none;}
+.month-row.active{ background: #ede6fa; color: #a56dfb; font-weight: 600;}
+.fade-enter-active,.fade-leave-active{transition:all .2s;}
+.fade-enter-from,.fade-leave-to{opacity:0;max-height:0;}
+.bill-label { font-size: 13px; font-weight: 600; color: #8050df; margin-left: 2px;}
 
 
 /* 底部导航 */

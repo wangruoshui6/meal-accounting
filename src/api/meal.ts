@@ -69,3 +69,9 @@ export const getUserStatistics = () => {
   return request.get('/api/meal/user-statistics')
 }
 
+// 获取年度账单统计（可选参数 year）
+export const getYearStatistics = (year?: number) => {
+  const url = year ? `/api/meal/year-statistics?year=${year}` : '/api/meal/year-statistics'
+  return request.get(url)
+}
+
