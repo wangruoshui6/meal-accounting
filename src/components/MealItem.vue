@@ -6,11 +6,9 @@
         <input
           ref="inputRef"
           v-model="localAmount"
-          type="number"
-          min="0"
-          step="0.01"
+          type="text"
           :placeholder="placeholder"
-          @input="updateAmount"
+          @input="onAmountInput"
           @blur="formatAmount"
           @focus="onFocus"
           @click="onClick"
@@ -82,6 +80,19 @@ const onFocus = () => {
     localAmount.value = ''
   }
 }
+
+const onAmountInput = (e: Event) => {
+  let val = (e.target as HTMLInputElement).value;
+  // 只保留数字和点
+  val = val.replace(/[^\d.]/g, '');
+  // 只允许出现一个小数点
+  val = val.replace(/\.(?=.*\.)/g, '');
+  // 小数点不允许在第一个字符
+  if (val.startsWith('.')) val = '';
+  localAmount.value = val;
+  // 发射事件，未失焦时也发number但能兼容输入 incomplete
+  emit('update:amount', val === '' ? 0 : Number(val));
+};
 
 const updateAmount = () => {
   const value = parseFloat(localAmount.value) || 0
