@@ -165,23 +165,69 @@ const loadAllItems = async () => {
       return false
     }
     
-    // 添加默认项目
-    const defaultItems = [
-      { key: 'breakfast', name: '早餐', icon: 'heart' },
-      { key: 'lunch', name: '午餐', icon: 'heart' },
-      { key: 'dinner', name: '晚餐', icon: 'airplane' },
-      { key: 'snack', name: '零食', icon: 'running' },
-      { key: 'drink', name: '饮料', icon: 'water' }
-    ]
+    // 从后端获取默认项目列表
+    let defaultMealItems: string[] = []
+    try {
+      const defaultItemsResponse = await getDefaultMealItems()
+      console.log('获取默认项目响应:', defaultItemsResponse)
+      
+      if (defaultItemsResponse.success && defaultItemsResponse.data && Array.isArray(defaultItemsResponse.data)) {
+        defaultMealItems = defaultItemsResponse.data.filter((name: string) => name && name.trim() !== '')
+      } else {
+        // 如果获取失败，使用默认值
+        defaultMealItems = ['早饭', '午饭', '晚饭', '零食', '饮料']
+      }
+    } catch (error) {
+      console.error('获取默认项目失败:', error)
+      // 如果获取失败，使用默认值
+      defaultMealItems = ['早饭', '午饭', '晚饭', '零食', '饮料']
+    }
     
-    // 先添加默认项目
-    defaultItems.forEach(item => {
+    // 如果获取的项目为空，使用默认值
+    if (defaultMealItems.length === 0) {
+      defaultMealItems = ['早饭', '午饭', '晚饭', '零食', '饮料']
+    }
+    
+    console.log('最终默认项目列表:', defaultMealItems)
+    
+    // 图标映射
+    const iconMap: Record<string, string> = {
+      '早饭': 'heart',
+      '早餐': 'heart',
+      '午饭': 'heart',
+      '午餐': 'heart',
+      '晚饭': 'airplane',
+      '晚餐': 'airplane',
+      '零食': 'running',
+      '饮料': 'water'
+    }
+    
+    // 先添加默认项目（从后端获取的）
+    defaultMealItems.forEach((name, index) => {
+      // 跳过空名称的项目
+      if (!name || name.trim() === '') {
+        return
+      }
+      
+      // 确定key：前5个使用固定key，超过5个的使用default_前缀
+      const keyMapping: Record<number, string> = {
+        0: 'breakfast',
+        1: 'lunch',
+        2: 'dinner',
+        3: 'snack',
+        4: 'drink'
+      }
+      const key = index < 5 && keyMapping[index] ? keyMapping[index] : `default_${index}`
+      const icon = iconMap[name] || 'circle'
+      
       allItems.push({
-        ...item,
+        key: key,
+        name: name,
+        icon: icon,
         value: 0,
         placeholder: '0'
       })
-      addedNames.add(item.name)
+      addedNames.add(name)
     })
     
     // 从主页数据中获取动态项目
@@ -293,7 +339,16 @@ const editRecord = (item: any) => {
 // 页面重新获得焦点时重新加载数据
 const handlePageFocus = () => {
   loadDiaryData()
-  loadAllItems() // 重新加载项目，确保与主页同步
+  loadAllItems() // 重新加载项目，确保与主页同步，包括从设置页面返回时更新默认项目
+}
+
+// 监听页面可见性变化（当从其他页面返回时）
+const handleVisibilityChange = () => {
+  if (!document.hidden) {
+    // 页面变为可见时，重新加载项目列表（可能从设置页面返回）
+    loadAllItems()
+    loadDiaryData()
+  }
 }
 
 // 有记录的日期列表
@@ -363,6 +418,9 @@ onMounted(() => {
   
   // 监听页面焦点，从日记页面返回时重新加载数据
   window.addEventListener('focus', handlePageFocus)
+  
+  // 监听页面可见性变化，从设置页面返回时重新加载默认项目
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 </script>
 

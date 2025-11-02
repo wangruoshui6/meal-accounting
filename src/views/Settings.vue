@@ -85,10 +85,44 @@ const addItem = () => {
   mealItems.value.push({ name: '' })
 }
 
-// 删除项目
-const removeItem = (index: number) => {
+// 删除项目（立即保存并同步）
+const removeItem = async (index: number) => {
   if (mealItems.value.length > 1) {
     mealItems.value.splice(index, 1)
+    
+    // 立即保存并同步
+    try {
+      // 保存所有项目，包括空名称的
+      const allItems = mealItems.value.map(item => item.name.trim())
+      
+      // 检查是否有至少一个非空项目
+      const validItems = allItems.filter(name => name.length > 0)
+      if (validItems.length === 0) {
+        showToast('至少保留一个项目')
+        // 恢复删除的项目
+        return
+      }
+      
+      // 检查非空项目是否有重复
+      const uniqueValidItems = [...new Set(validItems)]
+      if (uniqueValidItems.length !== validItems.length) {
+        showToast('项目名称不能重复')
+        // 恢复删除的项目（这里不恢复，因为重复检查是在保存时）
+      }
+      
+      // 立即保存到后端
+      const response = await saveDefaultMealItems(allItems)
+      
+      if (response.success) {
+        showToast('已删除并保存')
+      } else {
+        showToast(response.message || '保存失败')
+        // 如果保存失败，可以考虑恢复删除的项目
+      }
+    } catch (error) {
+      console.error('删除并保存失败:', error)
+      showToast('保存失败，请重试')
+    }
   } else {
     showToast('至少保留一个项目')
   }
@@ -151,27 +185,27 @@ const resetToDefault = () => {
 // 保存设置
 const saveSettings = async () => {
   try {
-    // 验证输入
-    const validItems = mealItems.value
-      .map(item => item.name.trim())
-      .filter(name => name.length > 0)
+    // 保存所有项目，包括空名称的（用户可能稍后填写）
+    const allItems = mealItems.value.map(item => item.name.trim())
     
+    // 检查是否有至少一个非空项目
+    const validItems = allItems.filter(name => name.length > 0)
     if (validItems.length === 0) {
       showToast('请至少添加一个项目')
       return
     }
     
-    // 检查重复
-    const uniqueItems = [...new Set(validItems)]
-    if (uniqueItems.length !== validItems.length) {
+    // 检查非空项目是否有重复
+    const uniqueValidItems = [...new Set(validItems)]
+    if (uniqueValidItems.length !== validItems.length) {
       showToast('项目名称不能重复')
       return
     }
     
-    // 保存到后端
-    const response = await saveDefaultMealItems('default', uniqueItems)
+    // 保存所有项目（包括空名称的）到后端
+    const response = await saveDefaultMealItems(allItems)
     
-    if (response.data.success) {
+    if (response.success) {
       showToast('设置保存成功')
       // 保存成功后返回上一页
       setTimeout(() => {
@@ -189,10 +223,10 @@ const saveSettings = async () => {
 // 加载设置
 const loadSettings = async () => {
   try {
-    const response = await getDefaultMealItems('default')
+    const response = await getDefaultMealItems()
     
-    if (response.data.success) {
-      const items = response.data.data || defaultItems
+    if (response.success && response.data && response.data.length > 0) {
+      const items = response.data || defaultItems
       mealItems.value = items.map((name: string) => ({ name }))
     } else {
       // 如果获取失败，使用默认值
