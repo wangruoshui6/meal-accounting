@@ -113,9 +113,15 @@ const onRegister = async () => {
   }
   const res = await register({ username: reg.value.username, password: reg.value.password })
   if (res.success) {
-    // 注册成功后，清除旧的token，避免数据串线
+    // 注册成功后，清除所有旧的用户数据，避免数据串线
     localStorage.removeItem('token')
     localStorage.removeItem('user')
+    // 清除所有日期相关的缓存数据
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('meal-record-') || key === 'selectedDate') {
+        localStorage.removeItem(key)
+      }
+    })
     showToast('注册成功')
     activeTab.value = 'login'
     // 自动填充登录表单
@@ -129,9 +135,15 @@ const onRegister = async () => {
 const onLogin = async () => {
   const res = await login({ username: loginForm.value.username, password: loginForm.value.password })
   if (res.success && res.token) {
-    // 登录前先清除旧的token，确保使用新token
+    // 登录前先清除所有旧的用户数据，确保使用新用户的数据
     localStorage.removeItem('token')
     localStorage.removeItem('user')
+    // 清除所有日期相关的缓存数据
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('meal-record-') || key === 'selectedDate') {
+        localStorage.removeItem(key)
+      }
+    })
     // 保存新的token和用户信息
     localStorage.setItem('token', res.token)
     if (res.user) localStorage.setItem('user', JSON.stringify(res.user))

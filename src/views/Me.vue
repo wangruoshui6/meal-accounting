@@ -234,6 +234,12 @@ const handleLogout = async () => {
       // 清除本地存储
       localStorage.removeItem('token')
       localStorage.removeItem('user')
+      // 清除所有日期相关的缓存数据
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('meal-record-') || key === 'selectedDate') {
+          localStorage.removeItem(key)
+        }
+      })
       
       showToast('已退出登录')
       router.replace('/auth')
@@ -245,6 +251,12 @@ const handleLogout = async () => {
       // 即使API失败，也清除本地存储并跳转
       localStorage.removeItem('token')
       localStorage.removeItem('user')
+      // 清除所有日期相关的缓存数据
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('meal-record-') || key === 'selectedDate') {
+          localStorage.removeItem(key)
+        }
+      })
       router.replace('/auth')
     }
   }

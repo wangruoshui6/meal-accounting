@@ -399,20 +399,36 @@ const cancelAdd = () => {
 // 清除所有数据
 const clearAllDataLocal = async () => {
   try {
+    // 先清空前端的输入（立即反馈给用户）
+    meals.value.forEach(meal => {
+      meal.amount = 0
+    })
+    
+    // 清除本地存储的缓存
+    const dateKey = selectedDate.value.format('YYYY-MM-DD')
+    localStorage.removeItem('meal-record-' + dateKey)
     
     // 调用后端API清空数据库（后端会清空所有字段，包括customItems）
-    const response = await clearAllData(selectedDate.value.format('YYYY-MM-DD'))
-    
-    
-    if (response.data.success) {
-      // 重新加载数据，显示后端清空后的状态
-      await loadData()
+    // 注意：即使后端没有记录，前端也已经清空了，所以用户体验不受影响
+    try {
+      const response = await clearAllData(selectedDate.value.format('YYYY-MM-DD'))
       
-      showToast('所有数据已清除')
-    } else {
-      showToast('清除失败，请重试')
+      if (response.data.success) {
+        showToast('所有数据已清除')
+      } else {
+        // 后端可能没有记录，但前端已经清空，仍然提示成功
+        showToast('数据已清除')
+      }
+    } catch (error) {
+      // 即使后端清除失败，前端也已经清空，提示成功
+      console.error('清除后端数据失败:', error)
+      showToast('前端数据已清除')
     }
+    
+    // 重新加载记录日期列表
+    await loadRecordDates()
   } catch (error) {
+    console.error('清除数据失败:', error)
     showToast('清除失败，请重试')
   }
 }
