@@ -77,9 +77,9 @@
           <div v-for="m in 12" :key="m" :class="['month-row', {active: selectedMonth===m}]"
                @click="handleSelectMonth(m)">
             <span>{{ monthNames[m-1] }}</span>
-            <span>{{ yearStatistics?.months[m-1]?.total?.toFixed(2) || '0.00' }}</span>
-            <span>{{ yearStatistics?.months[m-1]?.avg?.toFixed(2) || '0.00' }}</span>
-            <span>{{ yearStatistics?.months[m-1]?.days || 0 }}</span>
+            <span>{{ getMonthTotal(m) }}</span>
+            <span>{{ getMonthAvg(m) }}</span>
+            <span>{{ getMonthDays(m) }}</span>
           </div>
         </div>
       </transition>
@@ -134,6 +134,68 @@ const statPanelOpen = ref(false)
 const selectedMonth = ref<number | null>(null)
 
 const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月']
+
+// 获取月份统计数据（通过月份数字）
+const getMonthData = (month: number) => {
+  if (!yearStatistics.value || !yearStatistics.value.months) {
+    console.log(`月份${month}: yearStatistics或months为空`)
+    return { total: 0, avg: 0, days: 0 }
+  }
+  
+  // 先尝试通过数组索引访问（如果数组是按顺序排列的）
+  if (yearStatistics.value.months.length >= month) {
+    const monthDataByIndex = yearStatistics.value.months[month - 1]
+    if (monthDataByIndex && monthDataByIndex.month === month) {
+      return {
+        total: monthDataByIndex.total || 0,
+        avg: monthDataByIndex.avg || 0,
+        days: monthDataByIndex.days || 0
+      }
+    }
+  }
+  
+  // 如果索引访问失败，通过month字段查找
+  const monthData = yearStatistics.value.months.find((m: any) => m.month === month)
+  
+  if (monthData) {
+    return {
+      total: monthData.total || 0,
+      avg: monthData.avg || 0,
+      days: monthData.days || 0
+    }
+  }
+  
+  // 如果没找到，返回默认值
+  console.log(`月份${month}: 未找到数据，返回默认值0`)
+  return { total: 0, avg: 0, days: 0 }
+}
+
+const getMonthTotal = (month: number) => {
+  const data = getMonthData(month)
+  const result = (typeof data.total === 'number' ? data.total : 0).toFixed(2)
+  if (month === 11 || month === 12) {
+    console.log(`月份${month}的total:`, data.total, '结果:', result)
+  }
+  return result
+}
+
+const getMonthAvg = (month: number) => {
+  const data = getMonthData(month)
+  const result = (typeof data.avg === 'number' ? data.avg : 0).toFixed(2)
+  if (month === 11 || month === 12) {
+    console.log(`月份${month}的avg:`, data.avg, '结果:', result)
+  }
+  return result
+}
+
+const getMonthDays = (month: number) => {
+  const data = getMonthData(month)
+  const result = typeof data.days === 'number' ? data.days : 0
+  if (month === 11 || month === 12) {
+    console.log(`月份${month}的days:`, data.days, '结果:', result)
+  }
+  return result
+}
 
 // 加载状态
 const loading = ref(false)
@@ -212,13 +274,59 @@ const loadUserStatistics = async () => {
 // 加载年度账单
 const loadYearStatistics = async () => {
   try {
-    const resp = await getYearStatistics()
+    // 获取当前年份的年度账单
+    const currentYear = dayjs().year()
+    const resp = await getYearStatistics(currentYear)
     if (resp.data && resp.data.success) {
-      yearStatistics.value = resp.data.data
+      const data = resp.data.data
+      
+      // 确保months数组包含12个月的数据（后端应该已经包含，但这里做一个保障）
+      if (data.months && Array.isArray(data.months)) {
+        // 如果返回的月份数不足12个，补充缺失的月份
+        const monthsMap = new Map()
+        data.months.forEach((month: any) => {
+          if (month.month) {
+            monthsMap.set(month.month, month)
+          }
+        })
+        
+        // 确保有12个月的数据，按月份顺序排列（1-12月）
+        const completeMonths: any[] = []
+        for (let m = 1; m <= 12; m++) {
+          if (monthsMap.has(m)) {
+            const monthData = monthsMap.get(m)
+            completeMonths.push({
+              month: m,
+              total: monthData.total || 0,
+              days: monthData.days || 0,
+              avg: monthData.avg || 0
+            })
+          } else {
+            // 如果某个月份没有数据，创建一个空的数据
+            completeMonths.push({
+              month: m,
+              total: 0,
+              days: 0,
+              avg: 0
+            })
+          }
+        }
+        data.months = completeMonths
+        console.log('补充后的months数组长度:', completeMonths.length)
+        console.log('补充后的months数组:', completeMonths)
+      }
+      
+      yearStatistics.value = data
+      console.log('加载年度账单成功:', yearStatistics.value)
+      console.log('months数组长度:', yearStatistics.value?.months?.length)
+      console.log('months数组内容:', yearStatistics.value?.months)
+      console.log('11月数据:', yearStatistics.value?.months?.find((m: any) => m.month === 11))
+      console.log('12月数据:', yearStatistics.value?.months?.find((m: any) => m.month === 12))
     } else {
       showToast(resp.data.message || '获取年度账单失败')
     }
   } catch (e) {
+    console.error('获取年度账单失败:', e)
     showToast('获取年度账单失败')
   }
 }
@@ -342,6 +450,7 @@ onMounted(async () => {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  padding-bottom: 70px; /* 为底部导航栏留出空间，确保所有内容可见 */
 }
 
 /* 用户信息头部 */
@@ -534,7 +643,8 @@ onMounted(async () => {
   border-radius: 10px;
   background: #fff;
   box-shadow: 0 1px 6px rgba(127,86,233,0.05);
-  overflow:hidden;
+  overflow: visible; /* 改为visible，确保所有月份都能显示 */
+  max-height: none; /* 移除高度限制 */
 }
 .month-header, .month-row {
   display: flex;
@@ -548,7 +658,9 @@ onMounted(async () => {
 .month-row:last-child{border-bottom:none;}
 .month-row.active{ background: #ede6fa; color: #a56dfb; font-weight: 600;}
 .fade-enter-active,.fade-leave-active{transition:all .2s;}
-.fade-enter-from,.fade-leave-to{opacity:0;max-height:0;}
+.fade-enter-from,.fade-leave-to{opacity:0;max-height:0;overflow:hidden;}
+/* 确保过渡动画完成后，表格可以正常显示所有内容 */
+.fade-enter-to,.fade-leave-from{opacity:1;max-height:none;overflow:visible;}
 .bill-label { font-size: 13px; font-weight: 600; color: #8050df; margin-left: 2px;}
 
 

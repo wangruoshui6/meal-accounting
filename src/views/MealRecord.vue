@@ -223,11 +223,14 @@
                 class="item-input"
               />
               <div class="item-actions">
+                <!-- 前5个默认项目不能删除 -->
                 <van-icon 
+                  v-if="index >= 5"
                   name="cross" 
                   class="delete-btn"
                   @click="removeSettingsItem(index)"
                 />
+                <span v-else class="fixed-item-tip">固定项目</span>
               </div>
             </div>
           </div>
@@ -271,10 +274,21 @@ import { getDefaultMealItems, saveDefaultMealItems } from '../api/settings'
 
 const router = useRouter()
 
-// 当前日期
-const selectedDate = ref(dayjs())
-const currentDate = ref(dayjs().format('YYYY年MM月DD日'))
-const dateInput = ref(dayjs().format('YYYY-MM-DD'))
+// 当前日期（从localStorage读取，如果没有则使用当前日期）
+const getStoredDate = () => {
+  const storedDate = localStorage.getItem('selectedDate')
+  if (storedDate) {
+    const parsed = dayjs(storedDate)
+    if (parsed.isValid()) {
+      return parsed
+    }
+  }
+  return dayjs()
+}
+
+const selectedDate = ref(getStoredDate())
+const currentDate = ref(selectedDate.value.format('YYYY年MM月DD日'))
+const dateInput = ref(selectedDate.value.format('YYYY-MM-DD'))
 
 // 当前时间
 const currentTime = ref(dayjs().format('HH:mm:ss'))
@@ -438,6 +452,9 @@ const toggleSelectAll = () => {
 
 // 确认删除
 const confirmDelete = async () => {
+  console.log('=== confirmDelete 被调用 ===')
+  console.log('selectedDeleteItems.value:', selectedDeleteItems.value)
+  
   if (selectedDeleteItems.value.length === 0) {
     showToast('请选择要删除的项目')
     return
@@ -445,9 +462,19 @@ const confirmDelete = async () => {
   
   try {
     // 获取要删除的项目信息
+    console.log('开始获取要删除的项目信息')
     const itemsToDelete = selectedDeleteItems.value.map(key => {
       const meal = meals.value.find(m => m.key === key)
-      return meal ? { key, name: meal.name, isDefault: meal.key.startsWith('default_') || ['breakfast', 'lunch', 'dinner', 'snack', 'drink'].includes(meal.key) } : null
+      if (!meal) return null
+      
+      // 检查是否是前5个固定项目，如果是，不允许删除
+      const isFixedItem = ['breakfast', 'lunch', 'dinner', 'snack', 'drink'].includes(meal.key)
+      if (isFixedItem) {
+        showToast('前5个默认项目不能删除')
+        return null
+      }
+      
+      return { key, name: meal.name, isDefault: meal.key.startsWith('default_') || isFixedItem }
     }).filter(item => item !== null)
     
     if (itemsToDelete.length === 0) {
@@ -477,20 +504,50 @@ const confirmDelete = async () => {
     const defaultPrefixItemKeys: string[] = []
     const defaultPrefixItemNames: string[] = []
     
+    // 在删除前，先保存所有其他默认项目的金额（通过名称匹配，确保即使索引变化也能恢复）
+    const amountsToPreserve = new Map<string, number>()
+    
+    console.log('=== 开始删除流程 ===')
+    console.log('要删除的项目:', itemsToDelete.map(i => ({ key: i!.key, name: i!.name, isDefault: i!.isDefault })))
+    console.log('defaultItemNames:', defaultItemNames)
+    console.log('defaultItemKeys:', defaultItemKeys)
+    
     if (defaultItemNames.length > 0) {
+      // 在删除前，保存所有默认项目的金额（不管是否为0，都保存，确保不丢失）
+      meals.value.forEach(meal => {
+        // 保存所有默认项目的金额（包括前5个固定项目和后面的default_前缀项目）
+        if (meal.key.startsWith('default_') || ['breakfast', 'lunch', 'dinner', 'snack', 'drink'].includes(meal.key)) {
+          // 通过名称保存，因为名称是唯一的，不会因为索引变化而改变
+          // 保存所有金额（包括0），因为0也可能是用户有意设置的
+          if (meal.name) {
+            amountsToPreserve.set(meal.name.trim(), meal.amount)
+          }
+        }
+      })
+      console.log('删除前保存的金额:', Array.from(amountsToPreserve.entries()))
+      
       defaultItemKeys.forEach(key => {
         const meal = meals.value.find(m => m.key === key)
         if (meal) {
+          // 从保存的金额中移除要删除的项目
+          amountsToPreserve.delete(meal.name.trim())
+          
           if (meal.key.startsWith('default_')) {
             // 这是第6个及以后的默认项目，应该完全删除（从默认项目列表中移除）
             defaultPrefixItemKeys.push(key)
             defaultPrefixItemNames.push(meal.name)
+            console.log(`识别为第6个及以后的默认项目: ${meal.name} (key: ${key})`)
           } else {
             // 这是前5个固定项目，只清除金额，不删除项目本身
             fixedItemKeys.push(key)
+            console.log(`识别为前5个固定项目: ${meal.name} (key: ${key})`)
           }
         }
       })
+      
+      console.log('fixedItemKeys:', fixedItemKeys)
+      console.log('defaultPrefixItemKeys:', defaultPrefixItemKeys)
+      console.log('defaultPrefixItemNames:', defaultPrefixItemNames)
       
       // 处理前5个固定项目：只清除金额
       if (fixedItemKeys.length > 0) {
@@ -513,6 +570,13 @@ const confirmDelete = async () => {
           }
         } catch (error) {
           console.error('删除固定项目值失败:', error)
+        }
+        
+        // 保存更新后的数据（固定项目的金额已被清除）
+        try {
+          await saveRecord()
+        } catch (error) {
+          console.error('保存更新失败:', error)
         }
       }
       
@@ -539,6 +603,8 @@ const confirmDelete = async () => {
         }
         
         // 调用后端API删除默认项目在customItems中的值（如果存在）
+        // 注意：这里只删除当前日期的数据，历史数据保留（因为历史数据是真实的记录）
+        // 但在加载时会清理这些数据，避免显示已删除的默认项目
         try {
           const deleteResponse = await deleteCustomItems(selectedDate.value.format('YYYY-MM-DD'), defaultPrefixItemNames)
           if (!deleteResponse.data.success) {
@@ -585,17 +651,53 @@ const confirmDelete = async () => {
       }
     }
     
-    // 保存更新后的数据
-    if (fixedItemKeys.length > 0 || customItemNames.length > 0 || defaultPrefixItemKeys.length > 0) {
+    // 如果删除了第6个及以后的默认项目，只需要更新默认项目列表，不需要重新初始化meals
+    if (defaultPrefixItemKeys.length > 0) {
+      console.log('开始处理删除第6个及以后的默认项目')
+      console.log('删除的项目:', defaultPrefixItemNames)
+      console.log('当前meals列表（删除前）:', meals.value.map(m => ({ name: m.name, key: m.key, amount: m.amount })))
+      
+      // 从默认项目列表中移除（已经在上面执行过了）
+      // defaultMealItems.value 已经更新了
+      
+      // 重新加载默认项目列表，确保同步
+      await loadDefaultMealItems()
+      console.log('重新加载后的默认项目列表:', defaultMealItems.value)
+      console.log('当前meals列表（删除后，但未重新初始化）:', meals.value.map(m => ({ name: m.name, key: m.key, amount: m.amount })))
+      
+      // 重要：不重新初始化meals！只更新被删除项目的key（如果需要）
+      // 因为重新初始化会重置所有金额为0，这正是问题所在
+      // meals.value 中已经被删除的项目已经从列表中移除了（在第538-545行执行）
+      // 现在只需要确保剩余的项目的key是正确的（基于defaultMealItems）
+      
+      // 更新剩余default_前缀项目的key，确保索引正确
+      // 例如：如果删除了第5个（index=4），那么原来的第6个（index=5, key=default_5）应该变成第5个（index=4，但前5个用固定key）
+      // 或者：如果删除了第7个（index=6, key=default_6），那么原来的第8个（index=7, key=default_7）应该变成第6个（index=5, key=default_5）
+      
+      // 但是，由于我们通过名称匹配金额，key的变化不会影响金额的恢复
+      // 所以实际上不需要更新key，因为saveRecord()会通过名称保存
+      
+      // 直接保存当前状态到后端（保持所有金额不变）
+      console.log('准备保存当前状态到后端（保持所有金额）')
+      console.log('保存前的meals列表:', meals.value.map(m => ({ name: m.name, key: m.key, amount: m.amount })))
       try {
         await saveRecord()
+        console.log('✅ 保存成功，当前meals列表的状态:', meals.value.map(m => ({ name: m.name, key: m.key, amount: m.amount })))
+        
+        // 保存后，确保不会触发任何重新加载数据的操作
+        // 不调用 loadData()，因为那会重置所有金额
+        // 只更新记录日期列表（不影响当前页面数据）
       } catch (error) {
-        console.error('保存更新失败:', error)
+        console.error('❌ 保存失败:', error)
       }
+    } else {
+      // 如果没有删除第6个及以后的默认项目，只处理前5个固定项目或动态项目
+      // 注意：固定项目的金额已经在上面处理时清除了，不需要再次处理
+      // 只需要处理动态项目的删除
+      
+      // 重新加载数据，确保同步
+      await loadData()
     }
-    
-    // 重新加载数据，确保同步
-    await loadData()
     
     const totalDeleted = defaultItemNames.length + customItemNames.length
     if (totalDeleted > 0) {
@@ -665,7 +767,37 @@ const addSettingsItem = () => {
 
 // 删除设置项目（立即保存并同步）
 const removeSettingsItem = async (index: number) => {
+  console.log('=== removeSettingsItem 被调用 ===')
+  console.log('要删除的索引:', index)
+  
+  // 前5个默认项目不能删除
+  if (index < 5) {
+    showToast('前5个默认项目不能删除')
+    return
+  }
+  
+  console.log('删除前的settingsMealItems:', settingsMealItems.value.map(i => i.name))
+  console.log('删除前的meals列表:', meals.value.map(m => ({ name: m.name, amount: m.amount })))
+  
   if (settingsMealItems.value.length > 1) {
+    // 在删除前，先保存所有当前项目的金额（通过名称匹配）
+    const amountsToPreserve = new Map<string, number>()
+    meals.value.forEach(meal => {
+      if (meal.key.startsWith('default_') || ['breakfast', 'lunch', 'dinner', 'snack', 'drink'].includes(meal.key)) {
+        if (meal.name && meal.amount > 0) {
+          amountsToPreserve.set(meal.name.trim(), meal.amount)
+        }
+      }
+    })
+    console.log('删除前保存的金额:', Array.from(amountsToPreserve.entries()))
+    
+    // 获取要删除的项目名称
+    const deletedItemName = settingsMealItems.value[index].name.trim()
+    console.log('要删除的项目名称:', deletedItemName)
+    
+    // 从保存的金额中移除要删除的项目
+    amountsToPreserve.delete(deletedItemName)
+    
     settingsMealItems.value.splice(index, 1)
     
     // 立即保存并同步
@@ -693,7 +825,20 @@ const removeSettingsItem = async (index: number) => {
         showToast('已删除并保存')
         // 重新加载默认项目
         await loadDefaultMealItems()
-        await initializeMeals()
+        
+        // 重要：不调用 initializeMeals()，因为它会重置所有金额为0
+        // 而是只更新 meals.value 中对应的项目，保持金额不变
+        // 从 meals.value 中删除被删除的项目
+        const indexToRemove = meals.value.findIndex(m => m.name.trim() === deletedItemName)
+        if (indexToRemove > -1) {
+          meals.value.splice(indexToRemove, 1)
+        }
+        
+        console.log('删除后的meals列表（保持金额）:', meals.value.map(m => ({ name: m.name, amount: m.amount })))
+        
+        // 保存当前状态到后端（保持所有金额）
+        await saveRecord()
+        console.log('✅ 保存成功，金额已保持')
       } else {
         showToast(response.message || '保存失败')
       }
@@ -709,6 +854,12 @@ const removeSettingsItem = async (index: number) => {
 // 保存设置
 const saveSettings = async () => {
   try {
+    // 检查输入框中是否有未添加的项目名称
+    if (newItemName.value.trim()) {
+      showToast('请先添加输入的项目或清空输入框')
+      return
+    }
+    
     // 保存所有项目，包括空名称的（用户可能稍后填写）
     const allItems = settingsMealItems.value.map(item => item.name.trim())
     
@@ -957,6 +1108,9 @@ const confirmDate = () => {
   currentDate.value = selectedDate.value.format('YYYY年MM月DD日')
   showDatePicker.value = false
   
+  // 保存选中的日期到localStorage，以便Calendar页面同步
+  localStorage.setItem('selectedDate', selectedDate.value.format('YYYY-MM-DD'))
+  
   // 重新加载数据
   loadData()
 }
@@ -973,6 +1127,9 @@ const onDateConfirm = (date: Date) => {
   currentDate.value = selectedDate.value.format('YYYY年MM月DD日')
   showDatePicker.value = false
   
+  // 保存选中的日期到localStorage，以便Calendar页面同步
+  localStorage.setItem('selectedDate', selectedDate.value.format('YYYY-MM-DD'))
+  
   // 重新加载数据
   loadData()
 }
@@ -987,6 +1144,9 @@ const onNativeDateChange = (event: Event) => {
     dateInput.value = newDate
     currentDate.value = selectedDate.value.format('YYYY年MM月DD日')
     showDatePicker.value = false
+    
+    // 保存选中的日期到localStorage，以便Calendar页面同步
+    localStorage.setItem('selectedDate', selectedDate.value.format('YYYY-MM-DD'))
     
     // 重新加载数据
     loadData()
@@ -1014,6 +1174,10 @@ const initializeMeals = () => {
 const onDateChange = async () => {
   selectedDate.value = dayjs(dateInput.value)
   currentDate.value = selectedDate.value.format('YYYY年MM月DD日')
+  
+  // 保存选中的日期到localStorage，以便Calendar页面同步
+  localStorage.setItem('selectedDate', selectedDate.value.format('YYYY-MM-DD'))
+  
   await loadData()
 }
 
@@ -1030,13 +1194,17 @@ const saveRecord = async () => {
   }
 
   try {
+    console.log('saveRecord - 当前meals列表:', meals.value.map(m => ({ name: m.name, key: m.key, amount: m.amount })))
+    
     // 分离固定项目和动态项目
     const fixedMeals = meals.value.filter(meal => 
       ['breakfast', 'lunch', 'dinner', 'snack', 'drink'].includes(meal.key)
     )
+    console.log('saveRecord - 固定项目:', fixedMeals.map(m => ({ name: m.name, amount: m.amount })))
     
     // 获取所有默认项目的名称（用于过滤）
     const defaultMealNames = new Set(defaultMealItems.value.map(name => name.trim()))
+    console.log('saveRecord - 默认项目名称:', Array.from(defaultMealNames))
     
     // 获取所有需要保存到customItems的项目：
     // 1. 真正的自定义项目（custom_前缀）
@@ -1044,17 +1212,24 @@ const saveRecord = async () => {
     const customMeals = meals.value.filter(meal => 
       meal.key.startsWith('custom_') || meal.key.startsWith('default_')
     )
+    console.log('saveRecord - 自定义项目:', customMeals.map(m => ({ name: m.name, key: m.key, amount: m.amount })))
     
     // 构建动态项目对象
     // 注意：default_前缀的默认项目也需要保存到customItems，因为后端只有5个固定字段
     // 但在加载时会通过名称匹配正确关联到默认项目，避免重复显示
     const customItems: Record<string, number> = {}
     customMeals.forEach(meal => {
-      // 只有金额大于0的项目才保存（避免保存大量0值）
-      if (meal.amount > 0) {
+      // 对于真正的动态项目（custom_前缀），即使金额为0也要保存，以确保刷新后能显示
+      // 对于default_前缀的默认项目，只有金额大于0才保存（避免保存大量0值）
+      if (meal.key.startsWith('custom_')) {
+        // 动态项目：无论金额是否为0都保存
+        customItems[meal.name] = meal.amount
+      } else if (meal.amount > 0) {
+        // default_前缀的默认项目：只有金额大于0才保存
         customItems[meal.name] = meal.amount
       }
     })
+    console.log('saveRecord - 保存的customItems:', customItems)
     
     const recordData = {
       recordDate: selectedDate.value.format('YYYY-MM-DD'),
@@ -1157,14 +1332,20 @@ const loadData = async () => {
             // 跳过默认项目，避免重复显示
             if (defaultMealNames.has(nameTrimmed)) {
               // 如果customItems中有默认项目，需要恢复对应默认项目的金额
-              const mealIndex = defaultMealItems.value.findIndex(defaultName => defaultName.trim() === nameTrimmed)
-              if (mealIndex >= 0) {
-                // 恢复对应默认项目的金额（包括前5个和后面的）
-                const keyMapping = ['breakfast', 'lunch', 'dinner', 'snack', 'drink']
-                const key = mealIndex < 5 ? keyMapping[mealIndex] : `default_${mealIndex}`
-                const meal = meals.value.find(m => m.key === key && m.name === nameTrimmed)
-                if (meal) {
-                  meal.amount = amount as number
+              // 注意：通过名称匹配，而不是索引，避免删除项目后索引变化导致金额错位
+              const meal = meals.value.find(m => m.name === nameTrimmed)
+              if (meal) {
+                meal.amount = amount as number
+              } else {
+                // 如果找不到对应的meal（可能还未初始化），通过索引查找
+                const mealIndex = defaultMealItems.value.findIndex(defaultName => defaultName.trim() === nameTrimmed)
+                if (mealIndex >= 0) {
+                  const keyMapping = ['breakfast', 'lunch', 'dinner', 'snack', 'drink']
+                  const key = mealIndex < 5 ? keyMapping[mealIndex] : `default_${mealIndex}`
+                  const mealByKey = meals.value.find(m => m.key === key)
+                  if (mealByKey && mealByKey.name === nameTrimmed) {
+                    mealByKey.amount = amount as number
+                  }
                 }
               }
               // 重要：不添加到动态项目列表，避免在删除列表中显示
@@ -1178,21 +1359,63 @@ const loadData = async () => {
             }
             
             // 如果customItems中有项目，但它不在defaultMealItems中
-            // 这可能是被删除的默认项目，不应该把它当作动态项目添加，而应该清理掉
-            // 注意：真正的动态项目应该是用户主动添加的，不应该通过这种方式加载
+            // 这可能是：
+            // 1. 真正的动态项目（用户主动添加的） - 应该加载并显示
+            // 2. 被删除的默认项目 - 应该清理掉，避免显示和统计
             
-            // 重要：不添加到动态项目列表，而是添加到清理列表
-            // 因为如果这个项目不在defaultMealNames中，说明可能是被删除的默认项目
-            // 我们需要清理它，而不是当作动态项目显示
-            itemsToClean.push(nameTrimmed)
+            // 判断是否为被删除的默认项目：如果该项目在customItems中有值，但在defaultMealItems中不存在
+            // 为了避免误判，这里假设所有不在defaultMealItems中的项目都是动态项目
+            // 但如果这些项目的值导致了年度账单统计问题，可能需要更严格的判断
+            
+            // 暂时保留：添加到动态项目列表（这些可能是真正的动态项目）
+            const newKey = `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+            meals.value.push({
+              key: newKey,
+              name: name,
+              amount: amount as number,
+              placeholder: '',
+              type: 'number' as const,
+              description: ''
+            })
+            
+            // 注意：如果这些项目是被删除的默认项目，它们会在统计时被计算进去
+            // 但这可能是历史数据，不应该被清理
           })
           
-          // 清理customItems中已被删除的默认项目
+          // 清理customItems中已被删除的默认项目（第6个及以后的默认项目不应该在customItems中）
           if (itemsToClean.length > 0) {
             try {
               await deleteCustomItems(selectedDate.value.format('YYYY-MM-DD'), itemsToClean)
             } catch (error) {
               console.error('清理已删除的默认项目失败:', error)
+            }
+          }
+          
+          // 重要：清理customItems中被删除的默认项目（不在defaultMealItems中的项目）
+          // 这些项目可能是被删除的默认项目，应该清理掉，避免在统计时被计算进去
+          // 但真正的动态项目（已经添加到meals.value中的custom_前缀项目）应该保留
+          const deletedDefaultItemsToClean: string[] = []
+          Object.keys(customItems).forEach(name => {
+            const nameTrimmed = name.trim()
+            // 如果customItems中有项目，但它不在defaultMealItems中
+            if (!defaultMealNames.has(nameTrimmed)) {
+              // 检查是否是真正的动态项目（已经添加到meals.value中的custom_前缀项目）
+              const isDynamicItem = meals.value.some(m => m.key.startsWith('custom_') && m.name === nameTrimmed)
+              if (!isDynamicItem) {
+                // 这不是真正的动态项目，可能是被删除的默认项目，应该清理掉
+                // 注意：这里只清理当前日期，历史数据保留（因为历史数据是真实的记录）
+                // 但为了避免年度账单统计问题，应该清理这些被删除的默认项目
+                deletedDefaultItemsToClean.push(nameTrimmed)
+              }
+            }
+          })
+          
+          if (deletedDefaultItemsToClean.length > 0) {
+            console.log('清理被删除的默认项目:', deletedDefaultItemsToClean)
+            try {
+              await deleteCustomItems(selectedDate.value.format('YYYY-MM-DD'), deletedDefaultItemsToClean)
+            } catch (error) {
+              console.error('清理被删除的默认项目失败:', error)
             }
           }
           
@@ -1301,6 +1524,17 @@ watch(meals, () => {
 
 // 页面重新获得焦点时重新加载默认项目
 const handlePageFocus = () => {
+  // 同步从localStorage读取的日期（可能从Calendar页面返回）
+  const storedDate = localStorage.getItem('selectedDate')
+  if (storedDate) {
+    const parsed = dayjs(storedDate)
+    if (parsed.isValid()) {
+      selectedDate.value = parsed
+      dateInput.value = parsed.format('YYYY-MM-DD')
+      currentDate.value = parsed.format('YYYY年MM月DD日')
+    }
+  }
+  
   // 当页面重新获得焦点时，重新加载默认项目（可能从设置页面返回）
   loadDefaultMealItems().then(() => {
     // 重新初始化餐饮列表
@@ -1313,6 +1547,17 @@ const handlePageFocus = () => {
 // 监听页面可见性变化（当从其他页面返回时）
 const handleVisibilityChange = () => {
   if (!document.hidden) {
+    // 同步从localStorage读取的日期（可能从Calendar页面返回）
+    const storedDate = localStorage.getItem('selectedDate')
+    if (storedDate) {
+      const parsed = dayjs(storedDate)
+      if (parsed.isValid()) {
+        selectedDate.value = parsed
+        dateInput.value = parsed.format('YYYY-MM-DD')
+        currentDate.value = parsed.format('YYYY年MM月DD日')
+      }
+    }
+    
     // 页面变为可见时，重新加载默认项目（可能从设置页面返回）
     loadDefaultMealItems().then(() => {
       // 重新初始化餐饮列表
@@ -1367,10 +1612,15 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 4px 8px;
+  justify-content: center;
+  padding: 6px 8px;
   cursor: pointer;
   transition: all 0.2s;
   color: #999;
+  min-width: 0; /* 允许flex收缩 */
+  width: 100%; /* 确保每个项占据相等的宽度 */
+  height: 50px; /* 固定高度，确保三个导航项高度一致 */
+  box-sizing: border-box; /* 确保padding包含在高度内 */
 }
 
 .nav-item.active {
@@ -1380,10 +1630,24 @@ onMounted(async () => {
 .nav-item span {
   font-size: 10px;
   margin-top: 2px;
+  white-space: nowrap; /* 防止文字换行 */
+  text-align: center;
+  width: 100%;
+  line-height: 1.2; /* 固定行高，确保文字高度一致 */
+  height: 12px; /* 固定文字高度 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .nav-item .van-icon {
   font-size: 16px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0; /* 防止图标被压缩 */
 }
 
 /* 为主内容添加底部间距，避免被导航遮挡 */
@@ -1999,5 +2263,11 @@ onMounted(async () => {
   flex: 1;
   height: 40px;
   font-size: 14px;
+}
+
+.fixed-item-tip {
+  font-size: 12px;
+  color: #999;
+  font-style: italic;
 }
 </style>

@@ -25,11 +25,14 @@
               class="item-input"
             />
             <div class="item-actions">
+              <!-- 前5个默认项目不能删除 -->
               <van-icon 
+                v-if="index >= 5"
                 name="cross" 
                 class="delete-btn"
                 @click="removeItem(index)"
               />
+              <span v-else class="fixed-item-tip">固定项目</span>
             </div>
           </div>
         </div>
@@ -75,6 +78,12 @@ const addItem = () => {
 
 // 删除项目（立即保存并同步）
 const removeItem = async (index: number) => {
+  // 前5个默认项目不能删除
+  if (index < 5) {
+    showToast('前5个默认项目不能删除')
+    return
+  }
+  
   if (mealItems.value.length > 1) {
     mealItems.value.splice(index, 1)
     
@@ -276,6 +285,12 @@ onMounted(() => {
 
 .delete-btn:hover {
   background-color: #ff475720;
+}
+
+.fixed-item-tip {
+  font-size: 12px;
+  color: #999;
+  font-style: italic;
 }
 
 .add-item-btn {

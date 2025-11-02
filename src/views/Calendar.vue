@@ -111,9 +111,25 @@ const currentMonthYear = computed(() => currentMonth.value.format('YYYY年MM月'
 // 星期标题
 const weekdays = ['一', '二', '三', '四', '五', '六', '日']
 
-// 当前选中的日期
-const selectedDate = ref(dayjs())
+// 当前选中的日期（从localStorage读取，如果没有则使用当前日期）
+const getStoredDate = () => {
+  const storedDate = localStorage.getItem('selectedDate')
+  if (storedDate) {
+    const parsed = dayjs(storedDate)
+    if (parsed.isValid()) {
+      return parsed
+    }
+  }
+  return dayjs()
+}
+
+const selectedDate = ref(getStoredDate())
 const selectedDateDisplay = computed(() => selectedDate.value.format('YYYY-MM-D'))
+
+// 初始化月份显示（基于选中的日期）
+if (selectedDate.value.isValid()) {
+  currentMonth.value = selectedDate.value.startOf('month')
+}
 
 // 当前标签页
 const currentTab = ref('record')
@@ -338,16 +354,38 @@ const editRecord = (item: any) => {
 
 // 页面重新获得焦点时重新加载数据
 const handlePageFocus = () => {
+  // 同步从主页选择的日期
+  const storedDate = localStorage.getItem('selectedDate')
+  if (storedDate) {
+    const parsed = dayjs(storedDate)
+    if (parsed.isValid()) {
+      selectedDate.value = parsed
+      currentMonth.value = parsed.startOf('month') // 同步月份显示
+    }
+  }
+  
   loadDiaryData()
   loadAllItems() // 重新加载项目，确保与主页同步，包括从设置页面返回时更新默认项目
+  loadRecordData() // 重新加载记录数据
 }
 
 // 监听页面可见性变化（当从其他页面返回时）
 const handleVisibilityChange = () => {
   if (!document.hidden) {
+    // 同步从主页选择的日期
+    const storedDate = localStorage.getItem('selectedDate')
+    if (storedDate) {
+      const parsed = dayjs(storedDate)
+      if (parsed.isValid()) {
+        selectedDate.value = parsed
+        currentMonth.value = parsed.startOf('month') // 同步月份显示
+      }
+    }
+    
     // 页面变为可见时，重新加载项目列表（可能从设置页面返回）
     loadAllItems()
     loadDiaryData()
+    loadRecordData() // 重新加载记录数据
   }
 }
 
@@ -409,6 +447,15 @@ const switchTab = (tab: string) => {
 }
 
 onMounted(() => {
+  // 初始化时同步从主页选择的日期
+  const storedDate = localStorage.getItem('selectedDate')
+  if (storedDate) {
+    const parsed = dayjs(storedDate)
+    if (parsed.isValid()) {
+      selectedDate.value = parsed
+      currentMonth.value = parsed.startOf('month') // 同步月份显示
+    }
+  }
   // 设置当前标签页状态
   currentTab.value = 'record'
   

@@ -113,8 +113,14 @@ const onRegister = async () => {
   }
   const res = await register({ username: reg.value.username, password: reg.value.password })
   if (res.success) {
+    // 注册成功后，清除旧的token，避免数据串线
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
     showToast('注册成功')
     activeTab.value = 'login'
+    // 自动填充登录表单
+    loginForm.value.username = reg.value.username
+    loginForm.value.password = reg.value.password
   } else {
     showToast(res.message || '注册失败')
   }
@@ -123,6 +129,10 @@ const onRegister = async () => {
 const onLogin = async () => {
   const res = await login({ username: loginForm.value.username, password: loginForm.value.password })
   if (res.success && res.token) {
+    // 登录前先清除旧的token，确保使用新token
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    // 保存新的token和用户信息
     localStorage.setItem('token', res.token)
     if (res.user) localStorage.setItem('user', JSON.stringify(res.user))
     showToast('登录成功')
