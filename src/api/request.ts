@@ -2,9 +2,11 @@ import axios from 'axios'
 import { showToast } from 'vant'
 
 const request = axios.create({
-  baseURL: 'http://101.201.254.71/api',
+  // 生产环境使用域名
+  baseURL: 'http://www.mealaccounting.online/api',
+  // 开发环境使用IP（如果需要）
+  // baseURL: 'http://101.201.254.71/api',
   // baseURL: 'http://localhost:8080/api',
-  // baseURL: 'http://10.22.193.147:8080/',
   timeout: 10000
 })
 
