@@ -1,7 +1,7 @@
 import { createApp } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
-import { Button, Toast, Dialog, Field, Icon, Popup, Tabs, Tab, Checkbox, Form, Calendar as VanCalendar, PullRefresh } from 'vant'
+import { Button, Toast, Dialog, Field, Icon, Popup, Tabs, Tab, Checkbox, Form, Calendar as VanCalendar, PullRefresh, NavBar } from 'vant'
 import 'vant/lib/index.css'
 import './styles/index.scss'
 
@@ -12,6 +12,7 @@ import Me from './views/Me.vue'
 import Settings from './views/Settings.vue'
 import Auth from './views/Auth.vue'
 import Diary from './views/Diary.vue'
+import Chat from './views/Chat.vue'
 // 路由配置
 const routes = [
   { path: '/', component: MealRecord },
@@ -19,7 +20,8 @@ const routes = [
   { path: '/me', component: Me },
   { path: '/settings', component: Settings },
   { path: '/auth', component: Auth },
-  { path: '/diary', component: Diary }
+  { path: '/diary', component: Diary },
+  { path: '/chat', component: Chat }
 ]
 
 const router = createRouter({
@@ -52,4 +54,5 @@ app.use(Checkbox)
 app.use(Form)
 app.use(VanCalendar)
 app.use(PullRefresh)
+app.use(NavBar)
 app.mount('#app')

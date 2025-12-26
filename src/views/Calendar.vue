@@ -483,7 +483,7 @@ onMounted(() => {
 
 /* 头部 */
 .header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #FF9A6C 0%, #FF6B6B 100%);
   color: white;
   padding: 20px;
   display: flex;

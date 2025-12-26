@@ -13,6 +13,11 @@
 
     <!-- 功能菜单 -->
     <div class="menu-section">
+      <div class="menu-item" @click="goToChat">
+        <van-icon name="chat-o" />
+        <span>AI 饮食助手</span>
+        <van-icon name="arrow" />
+      </div>
       <div class="menu-item" @click="goToExport">
         <van-icon name="down" />
         <span>数据导出</span>
@@ -110,7 +115,8 @@ import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import { getUserStatistics, getYearStatistics } from '../api/meal'
 import { logout } from '../api/auth'
-import { showToast, showConfirmDialog } from 'vant'
+import { exportToExcel } from '../api/export'
+import { showToast, showConfirmDialog, showLoadingToast, closeToast, showDialog } from 'vant'
 
 const router = useRouter()
 
@@ -212,13 +218,57 @@ const switchTab = (tab: string) => {
 }
 
 // 菜单点击事件
+const goToChat = () => {
+  router.push('/chat')
+}
 
-const goToExport = () => {
-  showToast('数据导出功能开发中...')
+const goToExport = async () => {
+  // 检测是否为移动设备
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  
+  // 如果是移动端，直接提示不支持
+  if (isMobile) {
+    showDialog({
+      title: '提示',
+      message: '手机端暂不支持导出\n\n如需导出，请使用PC端访问',
+      confirmButtonText: '我知道了'
+    })
+    return
+  }
+  
+  // 桌面端正常导出
+  try {
+    showLoadingToast({
+      message: '正在导出数据...',
+      forbidClick: true,
+      duration: 0
+    })
+    
+    await exportToExcel()
+    
+    closeToast()
+    
+    showToast({
+      type: 'success',
+      message: '导出成功！文件已保存到下载文件夹',
+      duration: 3000
+    })
+  } catch (error: any) {
+    closeToast()
+    showToast({
+      type: 'fail',
+      message: error.message || '导出失败，请稍后重试',
+      duration: 2000
+    })
+  }
 }
 
 const goToHelp = () => {
-  showToast('帮助中心功能开发中...')
+  showDialog({
+    title: '帮助中心',
+    message: '401错误表示登录token已过期，请重新登录',
+    confirmButtonText: '我知道了'
+  })
 }
 
 // 登出功能
@@ -467,7 +517,7 @@ onMounted(async () => {
 
 /* 用户信息头部 */
 .user-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #FF9A6C 0%, #FF6B6B 100%);
   padding: 20px;
   display: flex;
   align-items: center;

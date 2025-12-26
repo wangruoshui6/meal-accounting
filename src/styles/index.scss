@@ -7,7 +7,7 @@
 }
 
 .header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #FF9A6C 0%, #FF6B6B 100%);
   color: white;
   padding: 20px;
   position: relative;
@@ -128,7 +128,7 @@
   overflow: hidden;
   
   .settings-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #FF9A6C 0%, #FF6B6B 100%);
     color: white;
     padding: 20px;
     display: flex;
@@ -232,7 +232,7 @@
       .add-btn {
         height: 36px;
         border-radius: 18px;
-        background: #667eea;
+      background: linear-gradient(135deg, #FF9A6C 0%, #FF6B6B 100%);
         border: none;
         color: white;
         font-size: 14px;
@@ -262,7 +262,7 @@
     }
     
     .save-btn {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #FF9A6C 0%, #FF6B6B 100%);
       border: none;
       color: white;
     }
@@ -417,8 +417,9 @@
   }
   
   .save-button {
-    background: #667eea;
+    background: linear-gradient(135deg, #FF9A6C 0%, #FF6B6B 100%);
     border: none;
+    box-shadow: 0 10px 24px rgba(255, 107, 107, 0.25);
   }
 }
 
@@ -460,12 +461,12 @@
       
       &:hover {
         background-color: #f8f9fa;
-        border-color: #667eea;
+        border-color: #FF6B6B;
       }
       
       &.selected {
-        background-color: #667eea10;
-        border-color: #667eea;
+        background-color: #FFEDE5;
+        border-color: #FF6B6B;
       }
       
       .item-name {

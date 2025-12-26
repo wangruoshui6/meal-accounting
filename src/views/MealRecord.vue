@@ -179,7 +179,7 @@
             <span class="item-amount">¥{{ meal.amount.toFixed(2) }}</span>
             <van-icon 
               :name="selectedDeleteItems.includes(meal.key) ? 'success' : 'circle'" 
-              :color="selectedDeleteItems.includes(meal.key) ? '#667eea' : '#ccc'"
+              :color="selectedDeleteItems.includes(meal.key) ? '#07C160' : '#ccc'"
             />
           </div>
           <div v-if="customMeals.length === 0" class="no-items">
@@ -1640,7 +1640,7 @@ onMounted(async () => {
 }
 
 .nav-item.active {
-  color: #1976d2;
+  color: #FF6B6B;
 }
 
 .nav-item span {
@@ -1878,7 +1878,7 @@ onMounted(async () => {
   gap: 6px;
   margin-bottom: 12px;
   padding: 8px 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #07C160;
   border-radius: 8px;
 }
 
@@ -2036,7 +2036,7 @@ onMounted(async () => {
 }
 
 .select-all-btn {
-  background: #667eea;
+  background: #07C160;
   color: white;
   border: none;
   padding: 6px 12px;
@@ -2112,7 +2112,7 @@ onMounted(async () => {
 }
 
 .settings-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #07C160;
   color: white;
   padding: 16px 20px;
   display: flex;

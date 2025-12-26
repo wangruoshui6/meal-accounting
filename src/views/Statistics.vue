@@ -789,7 +789,7 @@ onMounted(() => {
 <style scoped>
 .statistics-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(180deg, #FF9A6C 0%, #FF6B6B 40%, #FFF8F0 100%);
   transition: all 0.3s ease;
   padding-bottom: 80px; /* 为底部导航留出空间 */
 }
@@ -800,7 +800,7 @@ onMounted(() => {
 }
 
 .header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #FF9A6C 0%, #FF6B6B 100%);
   padding: 8px 0;
 }
 
@@ -977,7 +977,7 @@ canvas {
 }
 
 .legend-item.active {
-  border-color: #667eea;
+  border-color: #07C160;
   background-color: #f0f2ff;
 }
 
@@ -1015,7 +1015,7 @@ canvas {
 
 .dynamic-badge {
   font-size: 8px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #07C160;
   color: white;
   padding: 1px 4px;
   border-radius: 3px;
@@ -1073,7 +1073,7 @@ canvas {
 }
 
 .color-palette.active {
-  border-color: #667eea;
+  border-color: #07C160;
   background-color: #f0f2ff;
 }
 
@@ -1106,7 +1106,7 @@ canvas {
 
 /* 标签页样式 */
 :deep(.van-tabs__nav) {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #07C160;
 }
 
 :deep(.van-tab) {

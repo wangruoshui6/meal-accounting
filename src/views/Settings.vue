@@ -260,7 +260,7 @@ onMounted(() => {
 }
 
 .header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #07C160;
   color: white;
   padding: 20px;
   display: flex;
@@ -351,7 +351,7 @@ onMounted(() => {
 }
 
 .drag-handle:hover {
-  color: #667eea;
+  color: #07C160;
   background-color: #f0f0f0;
 }
 
@@ -400,8 +400,8 @@ onMounted(() => {
 }
 
 .add-item-btn:hover {
-  border-color: #667eea;
-  color: #667eea;
+  border-color: #07C160;
+  color: #07C160;
 }
 
 .add-item-btn .van-icon {
@@ -434,7 +434,7 @@ onMounted(() => {
 }
 
 .save-button {
-  background: #667eea;
+  background: #07C160;
   border: none;
 }
 </style>
